@@ -1,0 +1,406 @@
+---
+title: "ETL Pull Census Data"
+author: "Steven Macapagal"
+date: "2023-08-22"
+output: html_document
+---
+
+## Setup
+
+- Last modified: 2023-08-22
+- Last deployed (development): 
+- Last deployed (production): 
+
+```{r setup_doc}
+knitr::opts_chunk$set(echo = TRUE)
+
+# allows pins to work from RSConnect 
+httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
+```
+
+### Load libraries
+
+```{r setup_libraries}
+library(tidyverse)
+library(tidycensus)
+library(sf)
+```
+
+### Define tables, parameters, functions
+
+```{r define_tables}
+df_counties_tx <- tribble(
+  ~ state, ~ region, ~ county,
+  
+  "TX", "Austin", "Travis",
+  "TX", "Austin", "Hays",
+  "TX", "Austin", "Bastrop",
+  "TX", "Austin", "Williamson",
+
+  "TX", "El Paso", "El Paso",
+  
+  "TX", "Greater Houston Area", "Harris",
+  "TX", "Greater Houston Area", "Montgomery",
+
+  "TX", "Permian Basin", "Midland",
+  "TX", "Permian Basin", "Ector",
+  
+  "TX", "Rio Grande Valley", "Cameron",
+  "TX", "Rio Grande Valley", "Hidalgo",
+  "TX", "Rio Grande Valley", "Starr",
+  
+  "TX", "San Antonio", "Bexar",
+  "TX", "San Antonio", "Comal",
+  
+  "TX", "Tarrant County", "Tarrant",
+  "TX", "Tarrant County", "Parker",
+  "TX", "Tarrant County", "Burleson",
+)
+
+df_counties_ips <- tribble(
+  ~ state, ~ region, ~ county,
+  
+  "OH", "Cincinnati", "Hamilton",
+  
+  "FL", "Jacksonville", "Duval",
+  "FL", "Tampa", "Hillsborough",
+  "FL", "Tampa", "Polk" ,
+  
+  "LA", "Southern Louisiana", "East Baton Rouge",
+)
+
+df_counties_all <- bind_rows(
+  df_counties_tx,
+  df_counties_ips
+)
+```
+
+
+```{r define_parameters}
+# census-related parameters ----
+CENSUS_API_KEY <- Sys.getenv("CENSUS_API_KEY")
+CENSUS_YEAR <- 2021
+
+# other parameters ----
+
+```
+
+
+```{r define_functions}
+## get_hhs_under_50000(.state, .county, .year)
+## get ACS data on households under 50 000 for a given location and time
+## geography: block group
+
+get_sf_hhs_under_50000 <- function(.state = NULL,
+                                   .county = NULL,
+                                   .year = CENSUS_YEAR) {
+  
+  sf_hhs_under_50000 <- get_acs(
+    geography = "block group",
+    variables = c(var_name_1 = "B19001_001", # Walker p. 53, 3.4.2
+                  "B19001_002",
+                  "B19001_003",
+                  "B19001_004",
+                  "B19001_005",
+                  "B19001_006",
+                  "B19001_007",
+                  "B19001_008",
+                  "B19001_009",
+                  "B19001_010"),
+    state = state,
+    county = county,
+    geometry = TRUE,
+    year = year
+  ) # %>%
+    # left_join(df_acs_vars_parsed %>%
+    #             filter(str_detect(name, "B19001_")) %>%
+    #             slice_head(n = 10) %>%
+    #             select(name, income_level = label_3),
+    #           by = c("variable" = "name"))
+  
+  return(sf_hhs_under_50000)
+  
+}
+
+
+## get_sf_students_poverty(.state, .county, .year)
+## get ACS data on students in poverty for a given location and time
+## geography: tract
+
+get_sf_students_poverty <- function(.state = NULL,
+                                    .county = NULL,
+                                    .year = CENSUS_YEAR) {
+  
+  sf_students_poverty <- get_acs(
+    geography = "tract",
+    variables = c("B14006_004",
+                  "B14006_005",
+                  "B14006_006",
+                  "B14006_007"),
+    state = state,
+    county = county,
+    geometry = TRUE,
+    year = year
+  ) # %>%
+    # left_join(df_acs_vars_parsed %>%
+    #             filter(name %in% c("B14006_004",
+    #                                "B14006_005",
+    #                                "B14006_006",
+    #                                "B14006_007")) %>%
+    #             select(name,
+    #                    grade_range = label_5),
+    #           by = c("variable" = "name"))
+  
+  return(sf_students_poverty)
+  
+}
+
+
+## get_sf_hhs_children_under_18(.state, .county, .year)
+## get ACS data on households with children under 18 for a given location and time
+## geography: block group
+
+get_sf_hhs_children_under_18 <- function(.state = NULL,
+                                         .county = NULL,
+                                         .year = CENSUS_YEAR) {
+  
+  sf_hhs_children_under_18 <- get_acs(
+    geography = "block group",
+    variables = c(
+      # "B11005_002", # total hh w/1+ people under 18 yrs
+      "B11005_003" # same, but only families
+      # "B11005_011" # total hh w/o
+    ),
+    state = state,
+    county = county,
+    geometry = TRUE,
+    year = year
+  )
+  
+  return(sf_hhs_children_under_18)
+  
+}
+
+
+## get_sf_hhs_children_snap(.state, .county, .year)
+## get ACS data on households with children on SNAP for a given location and time
+## geography: tract
+
+get_sf_hhs_children_snap <- function(.state = NULL,
+                                     .county = NULL,
+                                     .year = CENSUS_YEAR) {
+  
+  sf_hhs_children_snap <- get_acs(
+    geography = "tract",
+    variables = c("B22002_001",
+                  "B22002_002",
+                  "B22002_003"),
+    state = state,
+    county = county,
+    geometry = TRUE,
+    year = year
+  ) # %>%
+    # left_join(df_acs_vars_parsed %>%
+    #             filter(name %in% c("B22002_001",
+    #                                "B22002_002",
+    #                                "B22002_003")) %>%
+    #             select(name,
+    #                    snap_status = label_3,
+    #                    child_status = label_4) %>%
+    #             mutate(snap_status = replace_na(snap_status, "All"),
+    #                    child_status = replace_na(child_status, "All")),
+    #           by = c("variable" = "name"))
+  
+  return(sf_hhs_children_snap)
+  
+}
+
+
+## get_sf_mobility(.state, .county, .year)
+## get ACS data on mobility for a given location and time
+## geography: tract
+
+get_sf_mobility <- function(.state = NULL,
+                            .county = NULL,
+                            .year = CENSUS_YEAR) {
+  
+  sf_mobility <- get_acs(
+    geography = "tract",
+    variables = c("B07001_034",
+                  "B07001_035",
+                  "B07001_050",
+                  "B07001_051",
+                  "B07001_066",
+                  "B07001_067",
+                  "B07001_082",
+                  "B07001_083"),
+    state = state,
+    county = county,
+    geometry = TRUE,
+    year = year
+  ) %>%
+    # left_join(df_acs_vars_parsed %>%
+    #             filter(name %in% c("B07001_034",
+    #                                "B07001_035",
+    #                                "B07001_050",
+    #                                "B07001_051",
+    #                                "B07001_066",
+    #                                "B07001_067",
+    #                                "B07001_082",
+    #                                "B07001_083")) %>%
+    #             select(name,
+    #                    locale = label_3,
+    #                    age_group = label_4),
+    #           by = c("variable" = "name"))
+  
+  return(sf_mobility)
+  
+}
+
+
+## get_sf_children(.state, .county, .year)
+## get ACS data for population under 18 years of age
+## geogrpahy: tract OR block group
+
+get_sf_children <- function(.state = NULL,
+                            .county = NULL,
+                            .year = CENSUS_YEAR,
+                            .geography = c("tract", "block group")) {
+  
+  if (geography == "tract") {
+    
+    sf_children <- get_acs(
+      geography = "tract",
+      variables = c("B09001_004", #3-4
+                    "B09001_005", #5
+                    "B09001_006", #6-8
+                    "B09001_007", #9-11
+                    "B09001_008", #12-14
+                    "B09001_009"  #15-17
+      ),
+      state = state,
+      county = county,
+      geometry = TRUE,
+      year = year
+    ) %>%
+      left_join(df_acs_vars_parsed %>%
+                  filter(name %in% c("B09001_004", #3-4
+                                     "B09001_005", #5
+                                     "B09001_006", #6-8
+                                     "B09001_007", #9-11
+                                     "B09001_008", #12-14
+                                     "B09001_009"  #15-17
+                  )) %>%
+                  select(name,
+                         age_group = label_4),
+                by = c("variable" = "name")) %>%
+      st_transform(crs = "WGS84")
+    
+    return(sf_children)
+    
+  } else if (geography == "block group") {
+    
+    sf_children <- get_acs(
+      geography = "block group", 
+      variables = c("B01001_004", #5-9, male
+                    "B01001_005", #10-14
+                    "B01001_006", #15-17
+                    "B01001_028", #5-9, female
+                    "B01001_029", #10-14
+                    "B01001_030"), #15-17
+      state = state, 
+      county = county, 
+      geometry = TRUE,
+      year = year
+    ) %>%
+      left_join(df_acs_vars_parsed %>%
+                  filter(name %in% c("B01001_004", #5-9, male
+                                     "B01001_005", #10-14
+                                     "B01001_006", #15-17
+                                     "B01001_028", #5-9, female
+                                     "B01001_029", #10-14
+                                     "B01001_030"  #15-17
+                  )) %>%
+                  select(name,
+                         gender = label_3,
+                         age_group = label_4),
+                by = c("variable" = "name")) %>%
+      group_by(GEOID, NAME, age_group) %>%
+      summarize(estimate = sum(estimate, na.rm=TRUE),
+                moe = moe_sum(moe, estimate)) %>%
+      st_transform(crs = "WGS84")
+    
+    return(sf_children)
+    
+  } else {
+    
+    stop("Geography not allowed. Choose either 'tract' or 'block group'.")
+    
+  }
+
+  
+}
+
+
+## get_sf_children_poverty(.state, .county, .year)
+## get ACS data for children relative to poverty line
+## geography: tract
+
+get_sf_children_poverty <- function(.state = NULL, 
+                                    .county = NULL, 
+                                    .year = CENSUS_YEAR) {
+  
+    sf_children <- get_acs(
+      geography = "tract",
+      variables = c("B05010_002", # below 1x poverty line
+                    "B05010_010"  # 1-1.99x poverty line
+      ),
+      state = state,
+      county = county,
+      geometry = TRUE,
+      year = year
+    ) %>%
+      # left_join(df_acs_vars_parsed %>%
+      #             filter(name %in% c("B05010_002", # below 1x poverty line
+      #                                "B05010_010"  # 1-1.99x poverty line
+      #             )) %>%
+      #             select(name,
+      #                    poverty_line = label_3),
+      #           by = c("variable" = "name")) %>%
+      # st_transform(crs = "WGS84")
+    
+    return(sf_children)
+  
+  
+}
+```
+
+## Pull data
+
+```{r}
+
+```
+
+
+## Append all data
+
+```{r}
+
+
+
+```
+
+
+
+## Pin data
+
+```{r pin_data}
+# attach to pins board ----
+board_rsc <- board_rsconnect()
+
+board_rsc %>%
+  pin_write(df_act_exam_level_user_facing,
+            name = "all_act_exams_user_facing_2",
+            description = "User-facing ACT exam data")
+```
+
