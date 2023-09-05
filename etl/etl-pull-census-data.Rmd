@@ -89,6 +89,7 @@ CENSUS_YEAR <- 2021
 ```{r define_functions}
 ## get_hhs_under_50000(.state, .county, .year)
 ## get ACS data on households under 50 000 for a given location and time
+## used in assessing relative household income levels
 ## geography: block group
 
 get_sf_hhs_under_50000 <- function(.state = NULL,
@@ -158,6 +159,7 @@ get_sf_students_poverty <- function(.state = NULL,
 
 ## get_sf_hhs_children_under_18(.state, .county, .year)
 ## get ACS data on households with children under 18 for a given location and time
+## get relative density of households with children, in general
 ## geography: block group
 
 get_sf_hhs_children_under_18 <- function(.state = NULL,
@@ -184,6 +186,7 @@ get_sf_hhs_children_under_18 <- function(.state = NULL,
 
 ## get_sf_hhs_children_snap(.state, .county, .year)
 ## get ACS data on households with children on SNAP for a given location and time
+## get relative density of SNAP usage
 ## geography: tract
 
 get_sf_hhs_children_snap <- function(.state = NULL,
@@ -218,6 +221,7 @@ get_sf_hhs_children_snap <- function(.state = NULL,
 
 ## get_sf_mobility(.state, .county, .year)
 ## get ACS data on mobility for a given location and time
+## get relative density of people moving into an area
 ## geography: tract
 
 get_sf_mobility <- function(.state = NULL,
@@ -238,7 +242,7 @@ get_sf_mobility <- function(.state = NULL,
     county = county,
     geometry = TRUE,
     year = year
-  ) %>%
+  ) # %>%
     # left_join(df_acs_vars_parsed %>%
     #             filter(name %in% c("B07001_034",
     #                                "B07001_035",
@@ -260,7 +264,8 @@ get_sf_mobility <- function(.state = NULL,
 
 ## get_sf_children(.state, .county, .year)
 ## get ACS data for population under 18 years of age
-## geogrpahy: tract OR block group
+## used for entry-level calculations and intersection calculations
+## geography: tract OR block group
 
 get_sf_children <- function(.state = NULL,
                             .county = NULL,
@@ -283,17 +288,17 @@ get_sf_children <- function(.state = NULL,
       geometry = TRUE,
       year = year
     ) %>%
-      left_join(df_acs_vars_parsed %>%
-                  filter(name %in% c("B09001_004", #3-4
-                                     "B09001_005", #5
-                                     "B09001_006", #6-8
-                                     "B09001_007", #9-11
-                                     "B09001_008", #12-14
-                                     "B09001_009"  #15-17
-                  )) %>%
-                  select(name,
-                         age_group = label_4),
-                by = c("variable" = "name")) %>%
+      # left_join(df_acs_vars_parsed %>%
+      #             filter(name %in% c("B09001_004", #3-4
+      #                                "B09001_005", #5
+      #                                "B09001_006", #6-8
+      #                                "B09001_007", #9-11
+      #                                "B09001_008", #12-14
+      #                                "B09001_009"  #15-17
+      #             )) %>%
+      #             select(name,
+      #                    age_group = label_4),
+      #           by = c("variable" = "name")) %>%
       st_transform(crs = "WGS84")
     
     return(sf_children)
@@ -313,18 +318,18 @@ get_sf_children <- function(.state = NULL,
       geometry = TRUE,
       year = year
     ) %>%
-      left_join(df_acs_vars_parsed %>%
-                  filter(name %in% c("B01001_004", #5-9, male
-                                     "B01001_005", #10-14
-                                     "B01001_006", #15-17
-                                     "B01001_028", #5-9, female
-                                     "B01001_029", #10-14
-                                     "B01001_030"  #15-17
-                  )) %>%
-                  select(name,
-                         gender = label_3,
-                         age_group = label_4),
-                by = c("variable" = "name")) %>%
+      # left_join(df_acs_vars_parsed %>%
+      #             filter(name %in% c("B01001_004", #5-9, male
+      #                                "B01001_005", #10-14
+      #                                "B01001_006", #15-17
+      #                                "B01001_028", #5-9, female
+      #                                "B01001_029", #10-14
+      #                                "B01001_030"  #15-17
+      #             )) %>%
+      #             select(name,
+      #                    gender = label_3,
+      #                    age_group = label_4),
+      #           by = c("variable" = "name")) %>%
       group_by(GEOID, NAME, age_group) %>%
       summarize(estimate = sum(estimate, na.rm=TRUE),
                 moe = moe_sum(moe, estimate)) %>%
@@ -344,6 +349,7 @@ get_sf_children <- function(.state = NULL,
 
 ## get_sf_children_poverty(.state, .county, .year)
 ## get ACS data for children relative to poverty line
+## used for poverty density calculations
 ## geography: tract
 
 get_sf_children_poverty <- function(.state = NULL, 
@@ -359,7 +365,7 @@ get_sf_children_poverty <- function(.state = NULL,
       county = county,
       geometry = TRUE,
       year = year
-    ) %>%
+    ) # %>%
       # left_join(df_acs_vars_parsed %>%
       #             filter(name %in% c("B05010_002", # below 1x poverty line
       #                                "B05010_010"  # 1-1.99x poverty line
@@ -378,14 +384,90 @@ get_sf_children_poverty <- function(.state = NULL,
 ## Pull data
 
 ```{r}
+sf_children_poverty <- df_counties_all %>%
+  pmap(
+    state, county, CENSUS_YEAR, # args???
+    get_sf_children_poverty     # function???
+  )
+
+sf_children_tract <- 
+  get_sf_children(
+    .state = STATE,
+    .county = COUNTY,
+    .year = YEAR,
+    .geography = "tract"
+  )
+
+sf_children_block_group <- 
+  get_sf_children(
+    .state = STATE,
+    .county = COUNTY,
+    .year = YEAR,
+    .geography = "block group"
+  )
+
+sf_mobility <- 
+  get_sf_mobility(
+    .state = STATE,
+    .county = COUNTY,
+    .year = YEAR
+  )
+
+sf_hhs_children_snap <-
+  get_sf_hhs_children_snap(
+    .state = STATE,
+    .county = COUNTY,
+    .year = YEAR
+  )
+
+sf_hhs_children_under_18 <-
+  get_sf_hhs_children_under_18(
+    .state = STATE,
+    .county = COUNTY,
+    .year = YEAR
+  )
+
+sf_hhs_under_50000 <- 
+  get_sf_hhs_under_50000(
+    .state = STATE,
+    .county = COUNTY,
+    .year = YEAR
+  )
+
+sf_students_poverty <-
+  get_sf_students_poverty(
+    .state = STATE,
+    .county = COUNTY,
+    .year = YEAR
+  )
+
 
 ```
 
 
 ## Append all data
 
-```{r}
+If we go this route (appending all the data), then we need a single column to identify the origin table.
 
+Might look like this:
+
+~ table, ~ all_other_cols
+children_poverty, ...,
+children_tract, ...,
+children_block_group, ...,
+...
+
+```{r append_data}
+sf_acs_all <- bind_rows(
+  sf_children_poverty,
+  sf_children_tract,
+  sf_children_block_group,
+  sf_mobility,
+  sf_hhs_children_snap,
+  sf_hhs_children_under_18,
+  sf_hhs_under_50000,
+  sf_students_poverty
+)
 
 
 ```
@@ -399,8 +481,8 @@ get_sf_children_poverty <- function(.state = NULL,
 board_rsc <- board_rsconnect()
 
 board_rsc %>%
-  pin_write(df_act_exam_level_user_facing,
-            name = "all_act_exams_user_facing_2",
-            description = "User-facing ACT exam data")
+  pin_write(sf_acs_all,
+            name = "acs_data",
+            description = "Most recent ACS data for app")
 ```
 
