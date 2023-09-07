@@ -7,7 +7,7 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2023-08-22
+- Last modified: 2023-09-07
 - Last deployed (development): 
 - Last deployed (production): 
 
@@ -383,12 +383,12 @@ get_sf_children_poverty <- function(.state = NULL,
 
 ## Pull data
 
-```{r}
+```{r pull_data}
 sf_children_poverty <- df_counties_all %>%
-  pmap(
-    state, county, CENSUS_YEAR, # args???
-    get_sf_children_poverty     # function???
-  )
+  select(-region) %>%
+  mutate(census_year = CENSUS_YEAR,
+         geography = "tract") %>%
+  pmap(get_sf_children_poverty)
 
 sf_children_tract <- 
   get_sf_children(

@@ -1,0 +1,46 @@
+---
+title: "ETL Transform Census Data"
+author: "Steven Macapagal"
+date: "2023-09-07"
+output: html_document
+---
+
+## Setup
+
+- Last modified: 2023-09-07
+- Last deployed (development): 
+- Last deployed (production): 
+- Inputs: sf_acs_all, "sf_geolocated_schools_sites"
+
+```{r setup_doc}
+knitr::opts_chunk$set(echo = TRUE)
+
+# allows pins to work from RSConnect 
+httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
+```
+
+
+## Spatially join schools and sites
+
+1. Filter out empty geographies
+2. Then spatially join to isochrones
+
+## Aggregate data at site + category level
+
+1. Group by site location and ACS category
+2. Summarize by sum() and moe_sum()
+
+## Get dot densities
+
+## Pin data
+
+```{r pin_data}
+# attach to pins board ----
+board_rsc <- board_rsconnect()
+
+board_rsc %>%
+  pin_write(# sf_acs_all,
+            # name = "acs_data",
+            # description = "Most recent ACS data for app")
+```
+
