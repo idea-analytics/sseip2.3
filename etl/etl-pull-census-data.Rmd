@@ -32,41 +32,41 @@ library(sf)
 df_counties_tx <- tribble(
   ~ state, ~ region, ~ county,
   
-  "TX", "Austin", "Travis",
-  "TX", "Austin", "Hays",
-  "TX", "Austin", "Bastrop",
-  "TX", "Austin", "Williamson",
+  "TX", "Austin", "Travis County",
+  "TX", "Austin", "Hays County",
+  "TX", "Austin", "Bastrop County",
+  "TX", "Austin", "Williamson County",
 
-  "TX", "El Paso", "El Paso",
+  "TX", "El Paso", "El Paso County",
   
-  "TX", "Greater Houston Area", "Harris",
-  "TX", "Greater Houston Area", "Montgomery",
+  "TX", "Greater Houston Area", "Harris County",
+  "TX", "Greater Houston Area", "Montgomery County",
 
-  "TX", "Permian Basin", "Midland",
-  "TX", "Permian Basin", "Ector",
+  "TX", "Permian Basin", "Midland County",
+  "TX", "Permian Basin", "Ector County",
   
-  "TX", "Rio Grande Valley", "Cameron",
-  "TX", "Rio Grande Valley", "Hidalgo",
-  "TX", "Rio Grande Valley", "Starr",
+  "TX", "Rio Grande Valley", "Cameron County",
+  "TX", "Rio Grande Valley", "Hidalgo County",
+  "TX", "Rio Grande Valley", "Starr County",
   
-  "TX", "San Antonio", "Bexar",
-  "TX", "San Antonio", "Comal",
+  "TX", "San Antonio", "Bexar County",
+  "TX", "San Antonio", "Comal County",
   
-  "TX", "Tarrant County", "Tarrant",
-  "TX", "Tarrant County", "Parker",
-  "TX", "Tarrant County", "Burleson",
+  "TX", "Tarrant County", "Tarrant County",
+  "TX", "Tarrant County", "Parker County",
+  "TX", "Tarrant County", "Burleson County",
 )
 
 df_counties_ips <- tribble(
   ~ state, ~ region, ~ county,
   
-  "OH", "Cincinnati", "Hamilton",
+  "OH", "Cincinnati", "Hamilton County",
   
-  "FL", "Jacksonville", "Duval",
-  "FL", "Tampa", "Hillsborough",
-  "FL", "Tampa", "Polk" ,
+  "FL", "Jacksonville", "Duval County",
+  "FL", "Tampa", "Hillsborough County",
+  "FL", "Tampa", "Polk County" ,
   
-  "LA", "Southern Louisiana", "East Baton Rouge",
+  "LA", "Southern Louisiana", "East Baton Rouge Parish",
 )
 
 df_counties_all <- bind_rows(
@@ -92,12 +92,13 @@ CENSUS_YEAR <- 2021
 ## used in assessing relative household income levels
 ## geography: block group
 
-get_sf_hhs_under_50000 <- function(.state = NULL,
-                                   .county = NULL,
-                                   .year = CENSUS_YEAR) {
+get_sf_hhs_under_50000 <- function(state = NULL,
+                                   county = NULL,
+                                   year = NULL,
+                                   geography = NULL) {
   
   sf_hhs_under_50000 <- get_acs(
-    geography = "block group",
+    geography = geography,
     variables = c(var_name_1 = "B19001_001", # Walker p. 53, 3.4.2
                   "B19001_002",
                   "B19001_003",
@@ -128,12 +129,13 @@ get_sf_hhs_under_50000 <- function(.state = NULL,
 ## get ACS data on students in poverty for a given location and time
 ## geography: tract
 
-get_sf_students_poverty <- function(.state = NULL,
-                                    .county = NULL,
-                                    .year = CENSUS_YEAR) {
+get_sf_students_poverty <- function(state = NULL,
+                                    county = NULL,
+                                    year = NULL,
+                                    geography = NULL) {
   
   sf_students_poverty <- get_acs(
-    geography = "tract",
+    geography = geography,
     variables = c("B14006_004",
                   "B14006_005",
                   "B14006_006",
@@ -162,12 +164,13 @@ get_sf_students_poverty <- function(.state = NULL,
 ## get relative density of households with children, in general
 ## geography: block group
 
-get_sf_hhs_children_under_18 <- function(.state = NULL,
-                                         .county = NULL,
-                                         .year = CENSUS_YEAR) {
+get_sf_hhs_children_under_18 <- function(state = NULL,
+                                         county = NULL,
+                                         year = NULL,
+                                         geography = NULL) {
   
   sf_hhs_children_under_18 <- get_acs(
-    geography = "block group",
+    geography = geography,
     variables = c(
       # "B11005_002", # total hh w/1+ people under 18 yrs
       "B11005_003" # same, but only families
@@ -189,12 +192,13 @@ get_sf_hhs_children_under_18 <- function(.state = NULL,
 ## get relative density of SNAP usage
 ## geography: tract
 
-get_sf_hhs_children_snap <- function(.state = NULL,
-                                     .county = NULL,
-                                     .year = CENSUS_YEAR) {
+get_sf_hhs_children_snap <- function(state = NULL,
+                                     county = NULL,
+                                     year = NULL,
+                                     geography = NULL) {
   
   sf_hhs_children_snap <- get_acs(
-    geography = "tract",
+    geography = geography,
     variables = c("B22002_001",
                   "B22002_002",
                   "B22002_003"),
@@ -224,12 +228,13 @@ get_sf_hhs_children_snap <- function(.state = NULL,
 ## get relative density of people moving into an area
 ## geography: tract
 
-get_sf_mobility <- function(.state = NULL,
-                            .county = NULL,
-                            .year = CENSUS_YEAR) {
+get_sf_mobility <- function(state = NULL,
+                            county = NULL,
+                            year = NULL,
+                            geography = NULL) {
   
   sf_mobility <- get_acs(
-    geography = "tract",
+    geography = geography,
     variables = c("B07001_034",
                   "B07001_035",
                   "B07001_050",
@@ -267,10 +272,10 @@ get_sf_mobility <- function(.state = NULL,
 ## used for entry-level calculations and intersection calculations
 ## geography: tract OR block group
 
-get_sf_children <- function(.state = NULL,
-                            .county = NULL,
-                            .year = CENSUS_YEAR,
-                            .geography = c("tract", "block group")) {
+get_sf_children <- function(state = NULL,
+                            county = NULL,
+                            year = NULL,
+                            geography = c("tract", "block group")) {
   
   if (geography == "tract") {
     
@@ -317,7 +322,7 @@ get_sf_children <- function(.state = NULL,
       county = county, 
       geometry = TRUE,
       year = year
-    ) %>%
+    ) # %>%
       # left_join(df_acs_vars_parsed %>%
       #             filter(name %in% c("B01001_004", #5-9, male
       #                                "B01001_005", #10-14
@@ -352,12 +357,13 @@ get_sf_children <- function(.state = NULL,
 ## used for poverty density calculations
 ## geography: tract
 
-get_sf_children_poverty <- function(.state = NULL, 
-                                    .county = NULL, 
-                                    .year = CENSUS_YEAR) {
+get_sf_children_poverty <- function(state = NULL, 
+                                    county = NULL, 
+                                    year = NULL,
+                                    geography = NULL) {
   
     sf_children <- get_acs(
-      geography = "tract",
+      geography = geography,
       variables = c("B05010_002", # below 1x poverty line
                     "B05010_010"  # 1-1.99x poverty line
       ),
@@ -384,62 +390,55 @@ get_sf_children_poverty <- function(.state = NULL,
 ## Pull data
 
 ```{r pull_data}
-sf_children_poverty <- df_counties_all %>%
+list_sf_children_poverty <- df_counties_all %>%
   select(-region) %>%
-  mutate(census_year = CENSUS_YEAR,
+  mutate(year = CENSUS_YEAR,
          geography = "tract") %>%
+  # df:
+  # ~ state, ~ county, ~ year, ~ geography
   pmap(get_sf_children_poverty)
 
-sf_children_tract <- 
-  get_sf_children(
-    .state = STATE,
-    .county = COUNTY,
-    .year = YEAR,
-    .geography = "tract"
-  )
+sf_children_tract <- df_counties_all %>%
+  select(-region) %>%
+  mutate(year = CENSUS_YEAR,
+         geography = "tract") %>%
+  pmap(get_sf_children)
 
-sf_children_block_group <- 
-  get_sf_children(
-    .state = STATE,
-    .county = COUNTY,
-    .year = YEAR,
-    .geography = "block group"
-  )
+# sf_children_block_group <- df_counties_all %>%
+#   select(-region) %>%
+#   mutate(year = CENSUS_YEAR,
+#          geography = "block group") %>%
+#   pmap(get_sf_children)
 
-sf_mobility <- 
-  get_sf_mobility(
-    .state = STATE,
-    .county = COUNTY,
-    .year = YEAR
-  )
+sf_mobility <- df_counties_all %>%
+  select(-region) %>%
+  mutate(year = CENSUS_YEAR,
+         geography = "tract") %>%
+  pmap(get_sf_mobility)
 
-sf_hhs_children_snap <-
-  get_sf_hhs_children_snap(
-    .state = STATE,
-    .county = COUNTY,
-    .year = YEAR
-  )
+sf_hhs_children_snap <- df_counties_all %>%
+  select(-region) %>%
+  mutate(year = CENSUS_YEAR,
+         geography = "tract") %>%
+  pmap(get_sf_hhs_children_snap)
 
-sf_hhs_children_under_18 <-
-  get_sf_hhs_children_under_18(
-    .state = STATE,
-    .county = COUNTY,
-    .year = YEAR
-  )
+sf_hhs_children_under_18 <- df_counties_all %>%
+  select(-region) %>%
+  mutate(year = CENSUS_YEAR,
+         geography = "block group") %>%
+  pmap(get_sf_hhs_children_under_18)
 
-sf_hhs_under_50000 <- 
-  get_sf_hhs_under_50000(
-    .state = STATE,
-    .county = COUNTY,
-    .year = YEAR
-  )
+sf_hhs_under_50000 <- df_counties_all %>%
+  select(-region) %>%
+  mutate(year = CENSUS_YEAR,
+         geography = "block group") %>%
+  pmap(get_sf_hhs_under_50000)
 
-sf_students_poverty <-
-  get_sf_students_poverty(
-    .state = STATE,
-    .county = COUNTY,
-    .year = YEAR
-  )
+sf_students_poverty <- df_counties_all %>%
+  select(-region) %>%
+  mutate(year = CENSUS_YEAR,
+         geography = "tract") %>%
+  pmap(get_sf_students_poverty)
 
 
 ```
