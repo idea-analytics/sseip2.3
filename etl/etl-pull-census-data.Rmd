@@ -7,7 +7,7 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2023-09-07
+- Last modified: 2023-09-26
 - Last deployed (development): 
 - Last deployed (production): 
 
@@ -113,12 +113,7 @@ get_sf_hhs_under_50000 <- function(state = NULL,
     county = county,
     geometry = TRUE,
     year = year
-  ) # %>%
-    # left_join(df_acs_vars_parsed %>%
-    #             filter(str_detect(name, "B19001_")) %>%
-    #             slice_head(n = 10) %>%
-    #             select(name, income_level = label_3),
-    #           by = c("variable" = "name"))
+  )
   
   return(sf_hhs_under_50000)
   
@@ -144,15 +139,7 @@ get_sf_students_poverty <- function(state = NULL,
     county = county,
     geometry = TRUE,
     year = year
-  ) # %>%
-    # left_join(df_acs_vars_parsed %>%
-    #             filter(name %in% c("B14006_004",
-    #                                "B14006_005",
-    #                                "B14006_006",
-    #                                "B14006_007")) %>%
-    #             select(name,
-    #                    grade_range = label_5),
-    #           by = c("variable" = "name"))
+  )
   
   return(sf_students_poverty)
   
@@ -206,17 +193,7 @@ get_sf_hhs_children_snap <- function(state = NULL,
     county = county,
     geometry = TRUE,
     year = year
-  ) # %>%
-    # left_join(df_acs_vars_parsed %>%
-    #             filter(name %in% c("B22002_001",
-    #                                "B22002_002",
-    #                                "B22002_003")) %>%
-    #             select(name,
-    #                    snap_status = label_3,
-    #                    child_status = label_4) %>%
-    #             mutate(snap_status = replace_na(snap_status, "All"),
-    #                    child_status = replace_na(child_status, "All")),
-    #           by = c("variable" = "name"))
+  )
   
   return(sf_hhs_children_snap)
   
@@ -247,20 +224,7 @@ get_sf_mobility <- function(state = NULL,
     county = county,
     geometry = TRUE,
     year = year
-  ) # %>%
-    # left_join(df_acs_vars_parsed %>%
-    #             filter(name %in% c("B07001_034",
-    #                                "B07001_035",
-    #                                "B07001_050",
-    #                                "B07001_051",
-    #                                "B07001_066",
-    #                                "B07001_067",
-    #                                "B07001_082",
-    #                                "B07001_083")) %>%
-    #             select(name,
-    #                    locale = label_3,
-    #                    age_group = label_4),
-    #           by = c("variable" = "name"))
+  )
   
   return(sf_mobility)
   
@@ -293,17 +257,6 @@ get_sf_children <- function(state = NULL,
       geometry = TRUE,
       year = year
     ) %>%
-      # left_join(df_acs_vars_parsed %>%
-      #             filter(name %in% c("B09001_004", #3-4
-      #                                "B09001_005", #5
-      #                                "B09001_006", #6-8
-      #                                "B09001_007", #9-11
-      #                                "B09001_008", #12-14
-      #                                "B09001_009"  #15-17
-      #             )) %>%
-      #             select(name,
-      #                    age_group = label_4),
-      #           by = c("variable" = "name")) %>%
       st_transform(crs = "WGS84")
     
     return(sf_children)
@@ -322,23 +275,7 @@ get_sf_children <- function(state = NULL,
       county = county, 
       geometry = TRUE,
       year = year
-    ) # %>%
-      # left_join(df_acs_vars_parsed %>%
-      #             filter(name %in% c("B01001_004", #5-9, male
-      #                                "B01001_005", #10-14
-      #                                "B01001_006", #15-17
-      #                                "B01001_028", #5-9, female
-      #                                "B01001_029", #10-14
-      #                                "B01001_030"  #15-17
-      #             )) %>%
-      #             select(name,
-      #                    gender = label_3,
-      #                    age_group = label_4),
-      #           by = c("variable" = "name")) %>%
-      group_by(GEOID, NAME, age_group) %>%
-      summarize(estimate = sum(estimate, na.rm=TRUE),
-                moe = moe_sum(moe, estimate)) %>%
-      st_transform(crs = "WGS84")
+    ) 
     
     return(sf_children)
     
@@ -371,15 +308,7 @@ get_sf_children_poverty <- function(state = NULL,
       county = county,
       geometry = TRUE,
       year = year
-    ) # %>%
-      # left_join(df_acs_vars_parsed %>%
-      #             filter(name %in% c("B05010_002", # below 1x poverty line
-      #                                "B05010_010"  # 1-1.99x poverty line
-      #             )) %>%
-      #             select(name,
-      #                    poverty_line = label_3),
-      #           by = c("variable" = "name")) %>%
-      # st_transform(crs = "WGS84")
+    ) 
     
     return(sf_children)
   
@@ -390,6 +319,7 @@ get_sf_children_poverty <- function(state = NULL,
 ## Pull data
 
 ```{r pull_data}
+# list is 20% memory of data frame
 list_sf_children_poverty <- df_counties_all %>%
   select(-region) %>%
   mutate(year = CENSUS_YEAR,
@@ -398,43 +328,43 @@ list_sf_children_poverty <- df_counties_all %>%
   # ~ state, ~ county, ~ year, ~ geography
   pmap(get_sf_children_poverty)
 
-sf_children_tract <- df_counties_all %>%
+list_sf_children_tract <- df_counties_all %>%
   select(-region) %>%
   mutate(year = CENSUS_YEAR,
          geography = "tract") %>%
   pmap(get_sf_children)
 
-# sf_children_block_group <- df_counties_all %>%
-#   select(-region) %>%
-#   mutate(year = CENSUS_YEAR,
-#          geography = "block group") %>%
-#   pmap(get_sf_children)
+list_sf_children_block_group <- df_counties_all %>%
+  select(-region) %>%
+  mutate(year = CENSUS_YEAR,
+         geography = "block group") %>%
+  pmap(get_sf_children)
 
-sf_mobility <- df_counties_all %>%
+list_sf_mobility <- df_counties_all %>%
   select(-region) %>%
   mutate(year = CENSUS_YEAR,
          geography = "tract") %>%
   pmap(get_sf_mobility)
 
-sf_hhs_children_snap <- df_counties_all %>%
+list_sf_hhs_children_snap <- df_counties_all %>%
   select(-region) %>%
   mutate(year = CENSUS_YEAR,
          geography = "tract") %>%
   pmap(get_sf_hhs_children_snap)
 
-sf_hhs_children_under_18 <- df_counties_all %>%
+list_sf_hhs_children_under_18 <- df_counties_all %>%
   select(-region) %>%
   mutate(year = CENSUS_YEAR,
          geography = "block group") %>%
   pmap(get_sf_hhs_children_under_18)
 
-sf_hhs_under_50000 <- df_counties_all %>%
+list_sf_hhs_under_50000 <- df_counties_all %>%
   select(-region) %>%
   mutate(year = CENSUS_YEAR,
          geography = "block group") %>%
   pmap(get_sf_hhs_under_50000)
 
-sf_students_poverty <- df_counties_all %>%
+list_sf_students_poverty <- df_counties_all %>%
   select(-region) %>%
   mutate(year = CENSUS_YEAR,
          geography = "tract") %>%
@@ -457,15 +387,15 @@ children_block_group, ...,
 ...
 
 ```{r append_data}
-sf_acs_all <- bind_rows(
-  sf_children_poverty,
-  sf_children_tract,
-  sf_children_block_group,
-  sf_mobility,
-  sf_hhs_children_snap,
-  sf_hhs_children_under_18,
-  sf_hhs_under_50000,
-  sf_students_poverty
+list_sf_acs_all <- list(
+  list_sf_children_poverty,
+  list_sf_children_tract,
+  list_sf_children_block_group,
+  list_sf_mobility,
+  list_sf_hhs_children_snap,
+  list_sf_hhs_children_under_18,
+  list_sf_hhs_under_50000,
+  list_sf_students_poverty
 )
 
 
@@ -480,7 +410,7 @@ sf_acs_all <- bind_rows(
 board_rsc <- board_rsconnect()
 
 board_rsc %>%
-  pin_write(sf_acs_all,
+  pin_write(list_sf_acs_all,
             name = "acs_data",
             description = "Most recent ACS data for app")
 ```
