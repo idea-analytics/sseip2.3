@@ -23,6 +23,7 @@ httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 ```{r setup_libraries}
 library(tidyverse)
 library(ideadata)
+library(sf)
 ```
 
 ### Define tables, parameters, functions
@@ -72,6 +73,11 @@ df_counties_all <- bind_rows(
   df_counties_tx,
   df_counties_ips
 )
+
+df_geolocated_schools <- read_csv(here::here("etl","GIS_sites_data_summary.csv"))%>%
+  janitor::clean_names()%>%
+  select(region:longitude)%>%
+  distinct()
 ```
 
 
@@ -97,8 +103,8 @@ get_geocoded_schools <- function(region = NULL) {
                  select(RegionID),
                by = c("RegionID" = "RegionID")) %>%
     select(SchoolShortName, SchoolStreet, SchoolCity, SchoolState, SchoolZipCode) %>%
-    distinct() %>%
     collect() %>%
+    distinct(SchoolShortName, .keep_all = TRUE ) %>%
     janitor::clean_names() %>%
     tidygeocoder::geocode(street = school_street,
                           city = school_city,
@@ -203,7 +209,7 @@ get_geocoded_students <- function(region = NULL) {
            PhysicalZIP) %>%
     inner_join(df_schools,
               by = c("SchoolNumber" = "SchoolNumber")) %>%
-    filter(RegionDescription == region_name) %>%
+    filter(RegionDescription == region) %>%
     collect() %>%
     janitor::clean_names() # %>%
   
@@ -392,12 +398,22 @@ st_as_sf_students <- function(.data, crs = "WGS84") {
 ```{r pull_data}
 # list is 20% memory of data frame
 list_sf_geocoded_students <- df_counties_all %>%
-  select(region) %>%
+  distinct(region) %>%
   # df:
   # ~ region
   pmap(get_geocoded_students) %>%
   map(., ~ st_as_sf_students(.x))
 
+
+```
+
+```{r}
+list_sf_geocoded_schools <- df_counties_all %>%
+  distinct(region) %>%
+  # df:
+  # ~ region
+  pmap(get_geocoded_schools) %>%
+  map(., ~ st_as_sf_schools(.x))
 
 ```
 
