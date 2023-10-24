@@ -7,8 +7,8 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2023-09-26
-- Last deployed (development): 
+- Last modified: 2023-10-19
+- Last deployed (development): 2023-10-19
 - Last deployed (production): 
 
 ```{r setup_doc}
@@ -24,6 +24,7 @@ httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 library(tidyverse)
 library(tidycensus)
 library(sf)
+library(pins)
 ```
 
 ### Define tables, parameters, functions
@@ -400,7 +401,6 @@ list_sf_acs_all <- list(
 
 
 ```
-
 
 
 ## Pin data
