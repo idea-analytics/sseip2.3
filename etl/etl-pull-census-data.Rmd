@@ -1,14 +1,14 @@
 ---
 title: "ETL Pull Census Data"
-author: "Steven Macapagal"
+author: "Steven Macapagal, Aline Orr"
 date: "2023-08-22"
 output: html_document
 ---
 
 ## Setup
 
-- Last modified: 2023-10-19
-- Last deployed (development): 2023-10-19
+- Last modified: 2023-10-27
+- Last deployed (development): 2023-10-27
 - Last deployed (production): 
 
 ```{r setup_doc}
@@ -24,6 +24,7 @@ httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 library(tidyverse)
 library(tidycensus)
 library(sf)
+library(qs)
 library(pins)
 ```
 
@@ -81,13 +82,44 @@ df_counties_all <- bind_rows(
 # census-related parameters ----
 CENSUS_API_KEY <- Sys.getenv("CENSUS_API_KEY")
 CENSUS_YEAR <- 2021
-
-# other parameters ----
-
 ```
 
 
 ```{r define_functions}
+## st_mutate_acs(.data, table_name, table_short_name, table_number, geography)
+## modifies all ACS tables to have consistent, readable format
+
+st_mutate_acs <- function(.data,
+                          table_name = NULL,
+                          table_short_name = NULL,
+                          table_number = NULL,
+                          geography = c("tract", "block group")) {
+  
+  mutate(.data,
+    table_name = table_name,
+    table_short_name = table_short_name,
+    table_number = table_number,
+    geography = geography,
+    county = str_split_i(NAME, ", ", -2),
+    state = str_split_i(NAME, ", ", -1)
+  ) %>%
+  select(
+    table_name,
+    table_short_name,
+    table_number,
+    state,
+    county,
+    geography,
+    GEOID,
+    variable,
+    estimate,
+    moe,
+    geometry
+  )
+  
+}
+
+
 ## get_hhs_under_50000(.state, .county, .year)
 ## get ACS data on households under 50 000 for a given location and time
 ## used in assessing relative household income levels
@@ -99,22 +131,38 @@ get_sf_hhs_under_50000 <- function(state = NULL,
                                    geography = NULL) {
   
   sf_hhs_under_50000 <- get_acs(
-    geography = geography,
-    variables = c(var_name_1 = "B19001_001", # Walker p. 53, 3.4.2
-                  "B19001_002",
-                  "B19001_003",
-                  "B19001_004",
-                  "B19001_005",
-                  "B19001_006",
-                  "B19001_007",
-                  "B19001_008",
-                  "B19001_009",
-                  "B19001_010"),
-    state = state,
-    county = county,
-    geometry = TRUE,
-    year = year
-  )
+      geography = geography,
+      variables = c(
+        `Total` = "B19001_001", # Walker p. 53, 3.4.2
+        `Less than $10,000` = "B19001_002",
+        `$10,000 to $14,999` = "B19001_003",
+        `$15,000 to $19,999` = "B19001_004",
+        `$20,000 to $24,999` = "B19001_005",
+        `$25,000 to $29,999` = "B19001_006",
+        `$30,000 to $34,999` = "B19001_007",
+        `$35,000 to $39,999` = "B19001_008",
+        `$40,000 to $44,999` = "B19001_009",
+        `$45,000 to $49,999` = "B19001_010",
+        `$50,000 to $59,999` = "B19001_011",
+        `$60,000 to $74,999` = "B19001_012",
+        `$75,000 to $99,999` = "B19001_013",
+        `$100,000 to $124,999` = "B19001_014",
+        `$125,000 to $149,999` = "B19001_015",
+        `$150,000 to $199,999` = "B19001_016",
+        `$200,000 or more` = "B19001_017"
+      ),
+      state = state,
+      county = county,
+      geometry = TRUE,
+      year = year
+    ) %>%
+    st_transform(crs = "WGS84") %>%
+    st_mutate_acs(
+      table_name = "HOUSEHOLD INCOME IN THE PAST 12 MONTHS (IN 2021 INFLATION-ADJUSTED DOLLARS)",
+      table_short_name = "Household income",
+      table_number = "B19001",
+      geography = "block group"
+    )
   
   return(sf_hhs_under_50000)
   
@@ -131,16 +179,32 @@ get_sf_students_poverty <- function(state = NULL,
                                     geography = NULL) {
   
   sf_students_poverty <- get_acs(
-    geography = geography,
-    variables = c("B14006_004",
-                  "B14006_005",
-                  "B14006_006",
-                  "B14006_007"),
-    state = state,
-    county = county,
-    geometry = TRUE,
-    year = year
-  )
+      geography = geography,
+      variables = c(
+        `Total` = "B14006_001",
+        `Income in the past 12 months below the poverty level` = "B14006_002",
+        `Enrolled in school` = "B14006_003",
+        `Enrolled in nursery school, preschool` = "B14006_004",
+        `Enrolled in kindergarten` = "B14006_005",
+        `Enrolled in grade 1 to grade 4` = "B14006_006",
+        `Enrolled in grade 5 to grade 8` = "B14006_007",
+        `Enrolled in grade 9 to grade 12` = "B14006_008",
+        `Enrolled in college undergraduate years` = "B14006_009",
+        `Enrolled in graduate or professional school` = "B14006_010",
+        `Not enrolled in school` = "B14006_011"
+      ),
+      state = state,
+      county = county,
+      geometry = TRUE,
+      year = year
+    ) %>%
+    st_transform(crs = "WGS84") %>%
+    st_mutate_acs(
+      table_name = "POVERTY STATUS IN THE PAST 12 MONTHS BY SCHOOL ENROLLMENT BY LEVEL OF SCHOOL FOR THE POPULATION 3 YEARS AND OVER",
+      table_short_name = "Students in poverty",
+      table_number = "B14006",
+      geography = "block group"
+    )
   
   return(sf_students_poverty)
   
@@ -158,17 +222,24 @@ get_sf_hhs_children_under_18 <- function(state = NULL,
                                          geography = NULL) {
   
   sf_hhs_children_under_18 <- get_acs(
-    geography = geography,
-    variables = c(
-      # "B11005_002", # total hh w/1+ people under 18 yrs
-      "B11005_003" # same, but only families
-      # "B11005_011" # total hh w/o
-    ),
-    state = state,
-    county = county,
-    geometry = TRUE,
-    year = year
-  )
+      geography = geography,
+      variables = c(
+        # "B11005_002", # total hh w/1+ people under 18 yrs
+        `Households with one or more people under 18 years, family households` = "B11005_003" # same, but only families
+        # "B11005_011" # total hh w/o
+      ),
+      state = state,
+      county = county,
+      geometry = TRUE,
+      year = year
+    ) %>%
+    st_transform(crs = "WGS84") %>%
+    st_mutate_acs(
+      table_name = "HOUSEHOLDS BY PRESENCE OF PEOPLE UNDER 18 YEARS BY HOUSEHOLD TYPE",
+      table_short_name = "Households with children under 17",
+      table_number = "B11005",
+      geography = "block group"
+    )
   
   return(sf_hhs_children_under_18)
   
@@ -186,15 +257,24 @@ get_sf_hhs_children_snap <- function(state = NULL,
                                      geography = NULL) {
   
   sf_hhs_children_snap <- get_acs(
-    geography = geography,
-    variables = c("B22002_001",
-                  "B22002_002",
-                  "B22002_003"),
-    state = state,
-    county = county,
-    geometry = TRUE,
-    year = year
-  )
+      geography = geography,
+      variables = c(
+        `Total` = "B22002_001",
+        `Household received Food Stamps/SNAP in the past 12 months` = "B22002_002",
+        `Household received Food Stamps/SNAP in the past 12 months with children under 18 years` = "B22002_003"
+      ),
+      state = state,
+      county = county,
+      geometry = TRUE,
+      year = year
+    ) %>%
+    st_transform(crs = "WGS84") %>%
+    st_mutate_acs(
+      table_name = "RECEIPT OF FOOD STAMPS/SNAP IN THE PAST 12 MONTHS BY PRESENCE OF CHILDREN UNDER 18 YEARS BY HOUSEHOLD TYPE FOR HOUSEHOLDS",
+      table_short_name = "SNAP",
+      table_number = "B22002",
+      geography = "tract"
+    )
   
   return(sf_hhs_children_snap)
   
@@ -212,20 +292,29 @@ get_sf_mobility <- function(state = NULL,
                             geography = NULL) {
   
   sf_mobility <- get_acs(
-    geography = geography,
-    variables = c("B07001_034",
-                  "B07001_035",
-                  "B07001_050",
-                  "B07001_051",
-                  "B07001_066",
-                  "B07001_067",
-                  "B07001_082",
-                  "B07001_083"),
-    state = state,
-    county = county,
-    geometry = TRUE,
-    year = year
-  )
+      geography = geography,
+      variables = c(
+        `Moved within same county, 1 to 4 years` = "B07001_034",
+        `Moved within same county, 5 to 17 years` = "B07001_035",
+        `Moved from different county within same state, 1 to 4 years` = "B07001_050",
+        `Moved from different county within same state, 5 to 17 years` = "B07001_051",
+        `Moved from different state, 1 to 4 years` = "B07001_066",
+        `Moved from different state, 5 to 17 years` ="B07001_067",
+        `Moved from abroad, 1 to 4 years` = "B07001_082",
+        `Moved from abroad, 5 to 17 years` = "B07001_083"
+      ),
+      state = state,
+      county = county,
+      geometry = TRUE,
+      year = year
+    ) %>%
+    st_transform(crs = "WGS84") %>%
+    st_mutate_acs(
+      table_name = "GEOGRAPHICAL MOBILITY IN THE PAST YEAR BY AGE FOR CURRENT RESIDENCE IN THE UNITED STATES",
+      table_short_name = "Mobility",
+      table_number = "B07001",
+      geography = "tract"
+    )
   
   return(sf_mobility)
   
@@ -245,38 +334,57 @@ get_sf_children <- function(state = NULL,
   if (geography == "tract") {
     
     sf_children <- get_acs(
-      geography = "tract",
-      variables = c("B09001_004", #3-4
-                    "B09001_005", #5
-                    "B09001_006", #6-8
-                    "B09001_007", #9-11
-                    "B09001_008", #12-14
-                    "B09001_009"  #15-17
-      ),
-      state = state,
-      county = county,
-      geometry = TRUE,
-      year = year
-    ) %>%
-      st_transform(crs = "WGS84")
+        geography = "tract",
+        variables = c(
+          `Under 3 years` = "B09001_003", # under 3 years
+          `3 and 4 years` = "B09001_004", # 3-4
+          `5 years` = "B09001_005", # 5
+          `6 to 8 years` = "B09001_006", # 6-8
+          `9 to 11 years` = "B09001_007", # 9-11
+          `12 to 14 years` = "B09001_008", # 12-14
+          `15 to 17 years` = "B09001_009"  # 15-17
+        ),
+        state = state,
+        county = county,
+        geometry = TRUE,
+        year = year
+      ) %>%
+      st_transform(crs = "WGS84") %>%
+      st_mutate_acs(
+        table_name = "POPULATION UNDER 18 YEARS BY AGE",
+        table_short_name = "Children by age group",
+        table_number = "B09001",
+        geography = "tract"
+      )
     
     return(sf_children)
     
   } else if (geography == "block group") {
     
     sf_children <- get_acs(
-      geography = "block group", 
-      variables = c("B01001_004", #5-9, male
-                    "B01001_005", #10-14
-                    "B01001_006", #15-17
-                    "B01001_028", #5-9, female
-                    "B01001_029", #10-14
-                    "B01001_030"), #15-17
-      state = state, 
-      county = county, 
-      geometry = TRUE,
-      year = year
-    ) 
+        geography = "block group", 
+        variables = c(
+          `Male Under 5 years` = "B01001_003", # under 5, male
+          `Male 5 to 9 years` = "B01001_004", # 5-9
+          `Male 10 to 14 years` = "B01001_005", # 10-14
+          `Male 15 to 17 years` = "B01001_006", # 15-17
+          `Female Under 5 years` = "B01001_027", # under 5, female
+          `Female 5 to 9 years` = "B01001_028", # 5-9
+          `Female 10 to 14 years` = "B01001_029", # 10-14
+          `Female 15 to 17 years` = "B01001_030" # 15=17
+        ),
+        state = state, 
+        county = county, 
+        geometry = TRUE,
+        year = year
+      ) %>%
+      st_transform(crs = "WGS84") %>%
+      st_mutate_acs(
+        table_name = "SEX BY AGE",
+        table_short_name = "Children by age group",
+        table_number = "B01001",
+        geography = "block group"
+      )
     
     return(sf_children)
     
@@ -301,15 +409,23 @@ get_sf_children_poverty <- function(state = NULL,
                                     geography = NULL) {
   
     sf_children <- get_acs(
-      geography = geography,
-      variables = c("B05010_002", # below 1x poverty line
-                    "B05010_010"  # 1-1.99x poverty line
-      ),
-      state = state,
-      county = county,
-      geometry = TRUE,
-      year = year
-    ) 
+        geography = geography,
+        variables = c(
+          `Under 1.00` = "B05010_002", # below 1x poverty line
+          `1.00 to 1.99` = "B05010_010"  # 1-1.99x poverty line
+        ),
+        state = state,
+        county = county,
+        geometry = TRUE,
+        year = year
+      ) %>%
+      st_transform(crs = "WGS84") %>%
+      st_mutate_acs(
+        table_name = "RATIO OF INCOME TO POVERTY LEVEL IN THE PAST 12 MONTHS BY NATIVITY OF CHILDREN UNDER 18 YEARS IN FAMILIES AND SUBFAMILIES BY LIVING ARRANGEMENTS AND NATIVITY OF PARENTS",
+        table_short_name = "Children in poverty",
+        table_number = "B05010",
+        geography = "tract"
+      )
     
     return(sf_children)
   
@@ -320,7 +436,6 @@ get_sf_children_poverty <- function(state = NULL,
 ## Pull data
 
 ```{r pull_data}
-# list is 20% memory of data frame
 list_sf_children_poverty <- df_counties_all %>%
   select(-region) %>%
   mutate(year = CENSUS_YEAR,
@@ -377,27 +492,35 @@ list_sf_students_poverty <- df_counties_all %>%
 
 ## Append all data
 
-If we go this route (appending all the data), then we need a single column to identify the origin table.
+All ACS data is stored with these columns:
 
-Might look like this:
-
-~ table, ~ all_other_cols
-children_poverty, ...,
-children_tract, ...,
-children_block_group, ...,
-...
+~table_name: full ACS table title (all caps)
+~table_short_name: shortened version of ACS table title (sentence case)
+~table_number: ACS table number (e.g. B19001)
+~state: "Florida", "Louisiana", "Ohio", or "Texas"
+~county: all have "County" or "Parish" in name
+~geography: "tract" or "block group"
+~GEOID: Census geography ID
+~variable: full ACS variable name (modified in some cases)
+~estimate: point estimate
+~moe: 95% margin of error
+~geometry: (if available) MULTIPOLYGON
 
 ```{r append_data}
-list_sf_acs_all <- list(
-  list_sf_children_poverty,
-  list_sf_children_tract,
-  list_sf_children_block_group,
-  list_sf_mobility,
-  list_sf_hhs_children_snap,
-  list_sf_hhs_children_under_18,
-  list_sf_hhs_under_50000,
-  list_sf_students_poverty
-)
+sf_acs_all <-
+  list(
+    list_sf_children_poverty,
+    list_sf_children_tract,
+    list_sf_children_block_group,
+    list_sf_mobility,
+    list_sf_hhs_children_snap,
+    list_sf_hhs_children_under_18,
+    list_sf_hhs_under_50000,
+    list_sf_students_poverty
+  ) %>%
+  map(., list_rbind) %>%
+  list_rbind() %>%
+  st_as_sf()
 
 
 ```
@@ -407,11 +530,13 @@ list_sf_acs_all <- list(
 
 ```{r pin_data}
 # attach to pins board ----
-board_rsc <- board_rsconnect()
+board_rsc <- board_connect()
 
+# write as qs file (requires qs package) ----
 board_rsc %>%
-  pin_write(list_sf_acs_all,
+  pin_write(sf_acs_all,
             name = "acs_data",
-            description = "Most recent ACS data for app")
+            description = "Most recent ACS data for app",
+            type = "qs")
 ```
 
