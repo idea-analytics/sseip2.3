@@ -7,10 +7,11 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2023-09-07
+- Last modified: 2023-10-30
 - Last deployed (development): 
 - Last deployed (production): 
-- Inputs: sf_acs_all, "sf_geolocated_schools_sites"
+- Inputs: aline.orr/acs_data
+- Outputs: 
 
 ```{r setup_doc}
 knitr::opts_chunk$set(echo = TRUE)
@@ -19,8 +20,43 @@ knitr::opts_chunk$set(echo = TRUE)
 httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 ```
 
+### Load libraries
 
-## Spatially join schools and sites
+```{r setup_libraries}
+library(tidyverse)
+library(terra)
+library(sf)
+library(tidycensus)
+library(pins)
+```
+
+### Read pins
+
+```{r read_pins}
+board <- board_connect(auth = "envvar") # connect to Posit Connect board
+sf_acs <- pin_read(board, "aline.orr/acs_data") # read this pin
+```
+
+
+## Transform data
+
+```{r dot_density_children_poverty}
+sf_children_in_poverty <- sf_acs %>%
+  filter(table_short_name == "Children in poverty") %>% # pull specific ACS table
+  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  
+  # not used for this ACS table
+  # group_by(GEOID, variable) %>%
+  #          summarize(total = sum(estimate),
+  #                    moe = moe_sum(moe, estimate)) %>%
+  # ungroup() %>%
+  
+  tidycensus::as_dot_density(
+    value = "estimate",
+    values_per_dot = 20
+  ) # convert MULTIPOLYGON to 20:1 POINT geometry
+```
+
 
 1. Filter out empty geographies
 2. Then spatially join to isochrones
@@ -36,11 +72,14 @@ httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 
 ```{r pin_data}
 # attach to pins board ----
-board_rsc <- board_rsconnect()
+board_posit <- board_connect()
 
-board_rsc %>%
-  pin_write(# sf_acs_all,
-            # name = "acs_data",
-            # description = "Most recent ACS data for app")
+board_posit %>%
+  pin_write(
+    # sf_acs_all,
+    # name = "dashboard_acs_data",
+    # description = "Dashboard-ready ACS data",
+    # type = "qs"
+    )
 ```
 

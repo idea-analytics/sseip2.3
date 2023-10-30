@@ -7,9 +7,11 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2023-10-27
+- Last modified: 2023-10-30
 - Last deployed (development): 2023-10-27
 - Last deployed (production): 
+- Inputs:
+- Outputs: aline.orr/acs_data
 
 ```{r setup_doc}
 knitr::opts_chunk$set(echo = TRUE)
