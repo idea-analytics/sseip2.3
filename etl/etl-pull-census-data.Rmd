@@ -8,7 +8,7 @@ output: html_document
 ## Setup
 
 - Last modified: 2023-10-30
-- Last deployed (development): 2023-10-27
+- Last deployed (development): 2023-11-08
 - Last deployed (production): 
 - Inputs:
 - Outputs: aline.orr/acs_data
@@ -238,7 +238,7 @@ get_sf_hhs_children_under_18 <- function(state = NULL,
     st_transform(crs = "WGS84") %>%
     st_mutate_acs(
       table_name = "HOUSEHOLDS BY PRESENCE OF PEOPLE UNDER 18 YEARS BY HOUSEHOLD TYPE",
-      table_short_name = "Households with children under 17",
+      table_short_name = "Households with children under 18",
       table_number = "B11005",
       geography = "block group"
     )
@@ -383,7 +383,7 @@ get_sf_children <- function(state = NULL,
       st_transform(crs = "WGS84") %>%
       st_mutate_acs(
         table_name = "SEX BY AGE",
-        table_short_name = "Children by age group",
+        table_short_name = "Children by age group and sex",
         table_number = "B01001",
         geography = "block group"
       )
