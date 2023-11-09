@@ -8,7 +8,7 @@ output: html_document
 ## Setup
 
 - Last modified: 2023-11-08
-- Last deployed (development): 
+- Last deployed (development): 2023-11-08
 - Last deployed (production): 
 - Inputs: aline.orr/acs_data
 - Outputs: 
@@ -109,7 +109,7 @@ sf_children_in_poverty <- sf_acs %>%
 
 
 # children by age group, block group ----
-# time: 4861.64 sec / 984.43 mvp
+# time: 4861.64 sec / 1380.67 mvp
 sf_children_by_age_group_block_group <- sf_acs %>%
   
   # get appropriate table rows
@@ -130,7 +130,7 @@ sf_children_by_age_group_block_group <- sf_acs %>%
       TRUE ~ variable
     )
   ) %>%
-  group_by(GEOID, variable) %>%
+  group_by(table_name, table_short_name, table_number, state, county, geography, GEOID, variable) %>%
   summarize(
     estimate = sum(estimate),
     moe = moe_sum(moe, estimate)
@@ -164,12 +164,14 @@ sf_children_by_age_group_tract <- sf_acs %>%
 
 
 # household income ----
-# time 11782.31 mvp
+# time 11613.21 mvp
 sf_household_income <- sf_acs %>%
   
   # get appropriate table rows
-  filter(table_short_name == "Household income",
-         county %in% mvp_counties) %>% # pull specific ACS table
+  filter(
+    table_short_name == "Household income",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
   filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
   
   # consolidate variable groups
@@ -183,7 +185,7 @@ sf_household_income <- sf_acs %>%
       TRUE ~ variable
     )
   ) %>%
-  group_by(table_name, table_short_name, table_number, state, geography, GEOID, variable) %>%
+  group_by(table_name, table_short_name, table_number, state, county, geography, GEOID, variable) %>%
   summarize(
     estimate = sum(estimate),
     moe = moe_sum(moe, estimate)
@@ -202,8 +204,10 @@ sf_household_income <- sf_acs %>%
 sf_students_in_poverty <- sf_acs %>%
   
   # get appropriate table rows
-  filter(table_short_name == "Students in poverty",
-         county %in% mvp_counties) %>% # pull specific ACS table
+  filter(
+    table_short_name == "Students in poverty",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
   filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
   
   # convert to dot density
@@ -218,8 +222,10 @@ sf_students_in_poverty <- sf_acs %>%
 sf_hh_children_under_18 <- sf_acs %>%
   
   # get appropriate table rows
-  filter(table_short_name == "Households with children under 17",
-         county %in% mvp_counties) %>% # pull specific ACS table
+  filter(
+    table_short_name == "Households with children under 17",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
   filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
   
   # convert to dot density
@@ -230,12 +236,14 @@ sf_hh_children_under_18 <- sf_acs %>%
 
 
 # mobility ----
-# time 88.88 mvp
+# time 83.11 mvp
 sf_mobility <- sf_acs %>%
   
   # get appropriate table rows
-  filter(table_short_name == "Mobility",
-         county %in% mvp_counties) %>% # pull specific ACS table
+  filter(
+    table_short_name == "Mobility",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
   filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
   
   # consolidate variable groups
@@ -248,7 +256,7 @@ sf_mobility <- sf_acs %>%
       TRUE ~ variable
     )
   ) %>%
-  group_by(table_name, table_short_name, table_number, state, geography, GEOID, variable) %>%
+  group_by(table_name, table_short_name, table_number, state, county, geography, GEOID, variable) %>%
   summarize(
     estimate = sum(estimate),
     moe = moe_sum(moe, estimate)
@@ -260,7 +268,6 @@ sf_mobility <- sf_acs %>%
     value = "estimate",
     values_per_dot = 20
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
-
 ```
 
 
@@ -274,6 +281,23 @@ sf_mobility <- sf_acs %>%
 
 ## Get dot densities
 
+Now, we will bind all dot density data in one sf data frame.
+
+```{r}
+sf_dot_density_mvp <- bind_rows(
+    sf_children_by_age_group_block_group,
+    sf_children_by_age_group_tract,
+    sf_children_in_poverty,
+    sf_hh_children_under_18,
+    sf_household_income,
+    sf_mobility,
+    sf_students_in_poverty
+  ) %>%
+  st_as_sf()
+  
+```
+
+
 ## Pin data
 
 ```{r pin_data}
@@ -282,10 +306,10 @@ board_posit <- board_connect()
 
 board_posit %>%
   pin_write(
-    # sf_acs_all,
-    # name = "dashboard_acs_data",
-    # description = "Dashboard-ready ACS data",
-    # type = "qs"
-    )
+    sf_dot_density_mvp,
+    name = "dashboard_dot_density_data",
+    description = "Dashboard-ready dot-density ACS data",
+    type = "qs"
+  )
 ```
 
