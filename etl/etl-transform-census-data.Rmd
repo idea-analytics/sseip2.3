@@ -1,0 +1,315 @@
+---
+title: "ETL Transform Census Data"
+author: "Steven Macapagal"
+date: "2023-09-07"
+output: html_document
+---
+
+## Setup
+
+- Last modified: 2023-11-08
+- Last deployed (development): 2023-11-08
+- Last deployed (production): 
+- Inputs: aline.orr/acs_data
+- Outputs: 
+
+```{r setup_doc}
+knitr::opts_chunk$set(echo = TRUE)
+
+# allows pins to work from RSConnect 
+httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
+```
+
+### Load libraries
+
+```{r setup_libraries}
+library(tidyverse)
+library(terra)       # engine used to create dot densities
+library(sf)
+library(qs)
+library(tidycensus)  # as_dot_density() wrapper
+library(pins)
+```
+
+### Read pins
+
+```{r read_pins}
+board <- board_connect(auth = "envvar") # connect to Posit Connect board
+sf_acs <- pin_read(board, "aline.orr/acs_data") # read this pin
+```
+
+```{r}
+df_counties_tx <- tribble(
+  ~ state, ~ region, ~ county,
+  
+  "TX", "Austin", "Travis County",
+  "TX", "Austin", "Hays County",
+  "TX", "Austin", "Bastrop County",
+  "TX", "Austin", "Williamson County",
+
+  "TX", "El Paso", "El Paso County",
+  
+  "TX", "Greater Houston Area", "Harris County",
+  "TX", "Greater Houston Area", "Montgomery County",
+
+  "TX", "Permian Basin", "Midland County",
+  "TX", "Permian Basin", "Ector County",
+  
+  "TX", "Rio Grande Valley", "Cameron County",
+  "TX", "Rio Grande Valley", "Hidalgo County",
+  "TX", "Rio Grande Valley", "Starr County",
+  
+  "TX", "San Antonio", "Bexar County",
+  "TX", "San Antonio", "Comal County",
+  
+  "TX", "Tarrant County", "Tarrant County",
+  "TX", "Tarrant County", "Parker County",
+  "TX", "Tarrant County", "Burleson County",
+)
+
+df_counties_ips <- tribble(
+  ~ state, ~ region, ~ county,
+  
+  "OH", "Cincinnati", "Hamilton County",
+  
+  "FL", "Jacksonville", "Duval County",
+  "FL", "Tampa", "Hillsborough County",
+  "FL", "Tampa", "Polk County" ,
+  
+  "LA", "Southern Louisiana", "East Baton Rouge Parish",
+)
+
+df_counties_all <- bind_rows(
+  df_counties_tx,
+  df_counties_ips
+)
+
+mvp_counties <- df_counties_all %>%
+  filter(region %in% c("Austin", "Permian Basin", "Tarrant County", "Cincinnati", "Jacksonville", "Tampa")) %>%
+  pull(county)
+```
+
+## Transform data
+
+```{r dot_density_children_poverty}
+# children in poverty ----
+# time 888.06 sec / 103.83 mvp
+sf_children_in_poverty <- sf_acs %>%
+  
+  # get appropriate table rows
+  filter(table_short_name == "Children in poverty",
+         county %in% mvp_counties) %>% # pull specific ACS table
+  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  
+  # convert to dot density
+  tidycensus::as_dot_density(
+    value = "estimate",
+    values_per_dot = 20
+  ) # convert MULTIPOLYGON to 20:1 POINT geometry
+
+
+# children by age group, block group ----
+# time: 4861.64 sec / 1380.67 mvp
+sf_children_by_age_group_block_group <- sf_acs %>%
+  
+  # get appropriate table rows
+  filter(
+    table_short_name == "Children by age group",
+    geography == "block group",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
+  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  
+  # consolidate variable groups
+  mutate(
+    variable = case_when(
+      str_detect(variable, "Under 5 years") ~ "Under 5 years",
+      str_detect(variable, "5 to 9 years") ~ "5 to 9 years",
+      str_detect(variable, "10 to 14 years") ~ "10 to 14 years",
+      str_detect(variable, "15 to 17 years") ~ "15 to 17 years",
+      TRUE ~ variable
+    )
+  ) %>%
+  group_by(table_name, table_short_name, table_number, state, county, geography, GEOID, variable) %>%
+  summarize(
+    estimate = sum(estimate),
+    moe = moe_sum(moe, estimate)
+  ) %>%
+  ungroup() %>%
+  
+  # convert to dot density
+  tidycensus::as_dot_density(
+    value = "estimate",
+    values_per_dot = 20
+  ) # convert MULTIPOLYGON to 20:1 POINT geometry
+
+
+# children by age group, tract ----
+# time: 1080.05 mvp
+sf_children_by_age_group_tract <- sf_acs %>%
+  
+  # get appropriate table rows
+  filter(
+    table_short_name == "Children by age group",
+    geography == "tract",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
+  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  
+  # convert to dot density
+  tidycensus::as_dot_density(
+    value = "estimate",
+    values_per_dot = 20
+  ) # convert MULTIPOLYGON to 20:1 POINT geometry
+
+
+# household income ----
+# time 11613.21 mvp
+sf_household_income <- sf_acs %>%
+  
+  # get appropriate table rows
+  filter(
+    table_short_name == "Household income",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
+  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  
+  # consolidate variable groups
+  mutate(
+    variable = case_when(
+      variable %in% c("Less than $10,000", "$10,000 to $14,999", "$15,000 to $19,999") ~ "Less than $20,000",
+      variable %in% c("$20,000 to $24,999", "$25,000 to $29,999") ~ "$20,000 to $29,999",
+      variable %in% c("$30,000 to $34,999", "$35,000 to $39,999") ~ "$30,000 to $39,999",
+      variable %in% c("$40,000 to $44,999", "$45,000 to $49,999") ~ "$40,000 to $49,999",
+      variable %in% c("$100,000 to $124,999", "$125,000 to $149,999", "$150,000 to $199,999", "$200,000 or more") ~ "$100,000 or more",
+      TRUE ~ variable
+    )
+  ) %>%
+  group_by(table_name, table_short_name, table_number, state, county, geography, GEOID, variable) %>%
+  summarize(
+    estimate = sum(estimate),
+    moe = moe_sum(moe, estimate)
+  ) %>%
+  ungroup() %>%
+  
+  # convert to dot density
+  tidycensus::as_dot_density(
+    value = "estimate",
+    values_per_dot = 20
+  ) # convert MULTIPOLYGON to 20:1 POINT geometry
+
+
+# students in poverty ----
+# time 5958.78 mvp
+sf_students_in_poverty <- sf_acs %>%
+  
+  # get appropriate table rows
+  filter(
+    table_short_name == "Students in poverty",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
+  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  
+  # convert to dot density
+  tidycensus::as_dot_density(
+    value = "estimate",
+    values_per_dot = 20
+  ) # convert MULTIPOLYGON to 20:1 POINT geometry
+
+
+# households with children under 18 ----
+# time 303.85 mvp
+sf_hh_children_under_18 <- sf_acs %>%
+  
+  # get appropriate table rows
+  filter(
+    table_short_name == "Households with children under 17",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
+  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  
+  # convert to dot density
+  tidycensus::as_dot_density(
+    value = "estimate",
+    values_per_dot = 20
+  ) # convert MULTIPOLYGON to 20:1 POINT geometry
+
+
+# mobility ----
+# time 83.11 mvp
+sf_mobility <- sf_acs %>%
+  
+  # get appropriate table rows
+  filter(
+    table_short_name == "Mobility",
+    county %in% mvp_counties
+  ) %>% # pull specific ACS table
+  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  
+  # consolidate variable groups
+  mutate(
+    variable = case_when(
+      variable %in% c("Moved within same county, 1 to 4 years", "Moved within same county, 5 to 17 years") ~ "Moved within same county",
+      variable %in% c("Moved from different county within same state, 1 to 4 years", "Moved from different county within same state, 5 to 17 years") ~ "Moved from different county within same state",
+      variable %in% c("Moved from different state, 1 to 4 years", "Moved from different state, 5 to 17 years") ~ "Moved from different state",
+      variable %in% c("Moved from abroad, 1 to 4 years", "Moved from abroad, 5 to 17 years") ~ "Moved from abroad",
+      TRUE ~ variable
+    )
+  ) %>%
+  group_by(table_name, table_short_name, table_number, state, county, geography, GEOID, variable) %>%
+  summarize(
+    estimate = sum(estimate),
+    moe = moe_sum(moe, estimate)
+  ) %>%
+  ungroup() %>%
+  
+  # convert to dot density
+  tidycensus::as_dot_density(
+    value = "estimate",
+    values_per_dot = 20
+  ) # convert MULTIPOLYGON to 20:1 POINT geometry
+```
+
+
+1. Filter out empty geographies
+2. Then spatially join to isochrones
+
+## Aggregate data at site + category level
+
+1. Group by site location and ACS category
+2. Summarize by sum() and moe_sum()
+
+## Get dot densities
+
+Now, we will bind all dot density data in one sf data frame.
+
+```{r}
+sf_dot_density_mvp <- bind_rows(
+    sf_children_by_age_group_block_group,
+    sf_children_by_age_group_tract,
+    sf_children_in_poverty,
+    sf_hh_children_under_18,
+    sf_household_income,
+    sf_mobility,
+    sf_students_in_poverty
+  ) %>%
+  st_as_sf()
+  
+```
+
+
+## Pin data
+
+```{r pin_data}
+# attach to pins board ----
+board_posit <- board_connect()
+
+board_posit %>%
+  pin_write(
+    sf_dot_density_mvp,
+    name = "dashboard_dot_density_data",
+    description = "Dashboard-ready dot-density ACS data",
+    type = "qs"
+  )
+```
+

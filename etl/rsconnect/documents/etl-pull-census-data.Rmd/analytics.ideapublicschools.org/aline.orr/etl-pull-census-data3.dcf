@@ -1,0 +1,12 @@
+name: etl-pull-census-data3
+title: etl-pull-census-data
+username: aline.orr
+account: aline.orr
+server: analytics.ideapublicschools.org
+hostUrl: https://analytics.ideapublicschools.org/__api__
+appId: 154
+bundleId: 6095
+url: https://analytics.ideapublicschools.org/content/ec1e7c37-30cc-411c-a7a5-52b14454d2b2/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

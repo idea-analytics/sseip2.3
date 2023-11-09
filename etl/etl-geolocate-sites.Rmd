@@ -1,0 +1,198 @@
+---
+title: "ETL Geolocate Sites"
+author: "Steven Macapagal"
+date: "2023-09-07"
+output: html_document
+---
+
+## Setup
+
+- Last modified: 2023-09-07
+- Last deployed (development): 
+- Last deployed (production): 
+- Inputs: 
+- Outputs:
+
+```{r setup_doc}
+knitr::opts_chunk$set(echo = TRUE)
+
+# allows pins to work from RSConnect 
+httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
+```
+
+
+### Load libraries
+
+```{r setup_libraries}
+library(tidyverse)
+library(tidycensus)
+library(sf)
+```
+
+
+### Define tables, parameters, functions
+
+```{r define_tables}
+df_counties_tx <- tribble(
+  ~ state, ~ region, ~ county,
+  
+  "TX", "Austin", "Travis",
+  "TX", "Austin", "Hays",
+  "TX", "Austin", "Bastrop",
+  "TX", "Austin", "Williamson",
+
+  "TX", "El Paso", "El Paso",
+  
+  "TX", "Greater Houston Area", "Harris",
+  "TX", "Greater Houston Area", "Montgomery",
+
+  "TX", "Permian Basin", "Midland",
+  "TX", "Permian Basin", "Ector",
+  
+  "TX", "Rio Grande Valley", "Cameron",
+  "TX", "Rio Grande Valley", "Hidalgo",
+  "TX", "Rio Grande Valley", "Starr",
+  
+  "TX", "San Antonio", "Bexar",
+  "TX", "San Antonio", "Comal",
+  
+  "TX", "Tarrant County", "Tarrant",
+  "TX", "Tarrant County", "Parker",
+  "TX", "Tarrant County", "Burleson",
+)
+
+df_counties_ips <- tribble(
+  ~ state, ~ region, ~ county,
+  
+  "OH", "Cincinnati", "Hamilton",
+  
+  "FL", "Jacksonville", "Duval",
+  "FL", "Tampa", "Hillsborough",
+  "FL", "Tampa", "Polk" ,
+  
+  "LA", "Southern Louisiana", "East Baton Rouge",
+)
+
+df_counties_all <- bind_rows(
+  df_counties_tx,
+  df_counties_ips
+)
+```
+
+
+```{r define_functions}
+## get_geocoded_schools()
+## gets geocoding for a given region
+## might want to adjust args depending on how app will run
+
+get_geocoded_schools <- function(region_name = NULL) {
+  
+  geocoded_schools <- get_schools() %>%
+    inner_join(get_regions() %>%
+                 filter(RegionDescription == region_name) %>%
+                 select(RegionID),
+               by = c("RegionID" = "RegionID")) %>%
+    select(SchoolShortName, SchoolStreet, SchoolCity, SchoolState, SchoolZipCode) %>%
+    distinct() %>%
+    collect() %>%
+    janitor::clean_names() %>%
+    tidygeocoder::geocode(street = school_street,
+                          city = school_city,
+                          state = school_state,
+                          postalcode = school_zip_code,
+                          method = "geocodio")
+  
+  return(geocoded_schools)
+  
+}
+
+
+## add_geocoded_school()
+## creates geocoded object for a given site
+## should be used with get_geocoded_schools() %>% add_sf_school()
+
+add_geocoded_school <- function(.data,
+                          school_short_name = NULL,
+                          school_street = NULL,
+                          school_city = NULL,
+                          school_state = NULL,
+                          school_zip_code = NULL,
+                          lat = NULL,
+                          long = NULL) {
+  
+  if ((hasArg(lat) & !hasArg(long)) | (!hasArg(lat) & hasArg(long))) {
+    
+    stop("Cannot create an sf object without both latitude and longitude. Provide both or leave both out.")
+    
+  }
+  
+  if (hasArg(lat) & hasArg(long)) {
+    
+    return(add_row(.data,
+            school_short_name = school_short_name,
+            school_street = school_street,
+            school_city = school_city,
+            school_state = school_state,
+            school_zip_code = as.numeric(school_zip_code),
+            lat = lat,
+            long = long))
+    
+  }
+  
+  if (!hasArg(lat) & !hasArg(long)) {
+    
+    new_geocoded_school <- data.frame(school_short_name = school_short_name,
+          school_street = school_street,
+          school_city = school_city,
+          school_state = school_state,
+          school_zip_code = as.numeric(school_zip_code)) %>%
+            mutate(school_zip_code = as.character(school_zip_code)) %>%
+    tidygeocoder::geocode(street = school_street,
+            city = school_city,
+            state = school_state,
+            postalcode = school_zip_code,
+            method = "geocodio") %>%
+      mutate(school_zip_code = as.numeric(school_zip_code))
+    
+    add_row(.data, new_geocoded_school)
+    
+  }
+  
+
+  
+}
+```
+
+
+## Geocode all schools
+
+```{r}
+df_schools_geocoded <- df_counties_all %>%
+  pmap(state, county, get_geocoded_schools)
+
+# issue: new sites cannot be automatically geocoded - we need to enter these
+# sites manually into the .Rmd
+```
+
+
+## Convert to sf object
+
+```{r}
+sf_schools <- df_schools_geocoded %>%
+  st_as_sf(coords = c("long", "lat")) %>%
+  st_set_crs("WGS84")
+```
+
+
+## Pin data
+
+```{r pin_data}
+# attach to pins board ----
+board_rsc <- board_rsconnect()
+
+board_rsc %>%
+  pin_write(# sf_acs_all,
+            # name = "acs_data",
+            # description = "Most recent ACS data for app")
+```
+

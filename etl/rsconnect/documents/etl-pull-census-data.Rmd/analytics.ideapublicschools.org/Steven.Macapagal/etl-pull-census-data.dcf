@@ -1,0 +1,12 @@
+name: etl-pull-census-data
+title: etl-pull-census-data
+username: Steven.Macapagal
+account: Steven.Macapagal
+server: analytics.ideapublicschools.org
+hostUrl: https://analytics.ideapublicschools.org/__api__
+appId: 158
+bundleId: 6200
+url: https://analytics.ideapublicschools.org/content/ee566aa2-dfa0-435f-9dd7-ab09e719764a/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
