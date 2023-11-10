@@ -1,6 +1,12 @@
-# TODO: palette does not have enough colors
-# TODO: there is a "Total" in the variable column (165122/330223 rows of the data frame)
-# TODO: arrange helps, but doesn't put it in the order we want
+# TODO: arrange helps, but doesn't put levels in the order we want in legend
+# TODO: poverty scatterplot layer seems high
+# TODO: widen the legend (mobility levels do not fit)
+# TODO: modify labels in legend
+# TODO: order the dot densities should be in and what is default "on"
+# TODO: names of dot density maps (on app)
+# TODO: Duval County, Children by Age (block), kids in water
+# TODO: maybe move layers and legend off the map to see the map more? (if we can)
+# TODO: Is there a way to select, say a particular age group, within the legend?
 
 # load libraries
 
@@ -110,50 +116,130 @@ server <- function(input, output) {
           editor = FALSE,
           blending_mode = "subtractive",
           height = 800
-    ) %>%
+    )
 
-      # add_polygon_layer(data = pp_site_drive_15_min_sf %>% filter(time == 10),
-      #                   get_polygon = geometry, opacity = .05,
-      #                   get_fill_color = scale_color_category(col=school_short_name,
-      #                                                         legend = FALSE,
-      #                                                         palette = ideacolors::idea_palettes$qual),
-      #                   name = "10-min drivetime",
-      #                   group_name = "Schools",
-      #                   visible = FALSE,
-      # ) %>%
-      #
-      # add_heatmap_layer(data = sf_students_austin,
-      #                   get_position = geometry,
-      #                   opacity = .25,
-      #                   name = "Current IDEA student density",
-      #                   group_name = "Heatmaps",
-      #                   visible = FALSE
-      # ) %>%
-      #
-      # add_heatmap_layer(data = pp_children_bg_dots,
-      #                   get_position = geometry,
-      #                   opacity = .4,
-      #                   visible = FALSE,
-      #                   color_range = viridisLite::turbo(6, direction = 1),
-      #                   name = "Est. school-aged children density",
-      #                   group_name = "Heatmaps",
-      #                   threshold = .5
-      # ) %>%
-      #
-      add_scatterplot_layer(data = sf_household_income %>% arrange(variable),
+    %>%
+
+      add_scatterplot_layer(data = sf_children_by_age_block %>% arrange(variable),
                             get_position = geometry,
                             get_fill_color = scale_color_category(col = variable,
                                                                   legend = TRUE,
                                                                   palette = ideacolors::idea_palettes$qual),
-                            # get_fill_color = "#9A95A2",
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Dot Density",
+                            name = "Children by Age (Block)"
+      )
+
+    %>%
+
+      add_scatterplot_layer(data = sf_children_by_age_tract %>% arrange(variable),
+                            get_position = geometry,
+                            get_fill_color = scale_color_category(col = variable,
+                                                                  legend = TRUE,
+                                                                  palette = ideacolors::idea_palettes$div),
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Dot Density",
+                            name = "Children by Age (Tract)"
+      )
+
+    %>%
+
+      add_scatterplot_layer(data = sf_children_in_poverty %>% filter(variable != "Total") %>% arrange(variable),
+                            get_position = geometry,
+                            get_fill_color = scale_color_category(col = variable,
+                                                                  legend = TRUE,
+                                                                  palette = ideacolors::idea_palettes$greenorange),
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Dot Density",
+                            name = "Children in Poverty"
+      )
+
+    %>%
+
+      add_scatterplot_layer(data = sf_household_income %>% filter(variable != "Total") %>% arrange(variable),
+                            get_position = geometry,
+                            get_fill_color = scale_color_category(col = variable,
+                                                                  legend = TRUE,
+                                                                  palette = ideacolors::idea_palettes$qual),
                             radius_min_pixels = 2,
                             opacity = .15,
                             visible = TRUE,
-                            group_name = "Scatterplots",
+                            group_name = "Dot Density",
                             name = "Household Income"
-      )
-    # %>%
+                            )
 
+    %>%
+
+      add_scatterplot_layer(data = sf_households_under18,
+                            get_position = geometry,
+                            get_fill_color = ideacolors::idea_colors$melon,
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Dot Density",
+                            name = "Households with Children Under 18"
+      )
+
+    %>%
+
+      add_scatterplot_layer(data = sf_mobility %>% filter(variable != "Total") %>% arrange(variable),
+                            get_position = geometry,
+                            get_fill_color = scale_color_category(col = variable,
+                                                                  legend = TRUE,
+                                                                  palette = ideacolors::idea_palettes$blueorange),
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Dot Density",
+                            name = "Mobility"
+      )
+
+    %>%
+
+      add_scatterplot_layer(data = sf_students_in_poverty,
+                          get_position = geometry,
+                          get_fill_color = "#9A95A2",
+                          radius_min_pixels = 2,
+                          opacity = .15,
+                          visible = FALSE,
+                          group_name = "Dot Density",
+                          name = "Students in Poverty"
+                          )
+
+    # add_polygon_layer(data = pp_site_drive_15_min_sf %>% filter(time == 10),
+    #                   get_polygon = geometry, opacity = .05,
+    #                   get_fill_color = scale_color_category(col=school_short_name,
+    #                                                         legend = FALSE,
+    #                                                         palette = ideacolors::idea_palettes$qual),
+    #                   name = "10-min drivetime",
+    #                   group_name = "Schools",
+    #                   visible = FALSE,
+    # ) %>%
+    #
+    # add_heatmap_layer(data = sf_students_austin,
+    #                   get_position = geometry,
+    #                   opacity = .25,
+    #                   name = "Current IDEA student density",
+    #                   group_name = "Heatmaps",
+    #                   visible = FALSE
+    # ) %>%
+    #
+    # add_heatmap_layer(data = pp_children_bg_dots,
+    #                   get_position = geometry,
+    #                   opacity = .4,
+    #                   visible = FALSE,
+    #                   color_range = viridisLite::turbo(6, direction = 1),
+    #                   name = "Est. school-aged children density",
+    #                   group_name = "Heatmaps",
+    #                   threshold = .5
+    # ) %>%
+    #
       # add_scatterplot_layer(data = sf_students_austin %>% ungroup() %>% arrange(school_short_name) ,
       #                       get_position = geometry,
       #                       get_fill_color = scale_color_category(col=school_short_name,
