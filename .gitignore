@@ -2,3 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
+etl/rsconnect/
+etl/rsconnect/documents/
