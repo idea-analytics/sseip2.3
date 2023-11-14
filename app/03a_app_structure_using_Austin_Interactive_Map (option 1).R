@@ -22,11 +22,18 @@ library(here)
 # install.packages("devtools")
 # devtools::install_github("idea-analytics/ideacolors")
 library(ideacolors)
+library(viridis)
 
 # load mvp data
 load(here::here("etl", "sf_dot_density_mvp.rda"))
+load(here::here("etl", "sf_isochrones_idea_mvp.rda"))
+load(here::here("etl", "sf_schools_idea_mvp.rda"))
+#load(here::here("etl", "sf_students_idea_mvp.rda"))
 
 sf_dot_density_mvp <- st_as_sf(sf_dot_density_mvp)
+sf_isochrones_idea_mvp <- st_as_sf(sf_isochrones_idea_mvp) # polygons
+sf_schools_idea_mvp <- st_as_sf(sf_schools_idea_mvp) # scatterplot + make larger dots with school name next to them
+#sf_students_idea_mvp <- st_as_sf(sf_students_idea_mvp)
 
 # create separate data frames for block groups and tracts
 
@@ -69,6 +76,11 @@ sf_children_in_poverty <- sf_dot_density_mvp %>%
 # load("pp_children_bg_dots.Rdata")
 # # drive_times
 # load("pp_site_drive_15_min_sf.Rdata")
+
+# school count (for use with color palette)
+n_schools <- sf_schools_idea_mvp %>%
+  distinct(school_short_name) %>%
+  summarize(count = n())
 
 ## mapbox token
 
@@ -120,6 +132,40 @@ server <- function(input, output) {
 
     %>%
 
+      add_scatterplot_layer(data = sf_schools_idea_mvp,
+                            get_position = geometry,
+                            radius_min_pixels = 4,
+                            get_fill_color = scale_color_category(col = school_short_name,
+                                                                  legend = FALSE,
+                                                                  palette = viridis(n_schools)),
+                                                                  #palette = ideacolors::idea_palettes$qual), # not enough
+                            tooltip = c(school_short_name),
+                            pickable = TRUE,
+                            name = "IDEA Schools",
+                            group_name = "Schools"
+                            )
+
+    %>%
+
+      add_text_layer(data = sf_schools_idea_mvp,
+                     get_position = geometry,
+                     size_min_pixels = 13,
+                     size_max_pixels = 14,
+                     get_text_anchor = "end",
+                     #radius_min_pixels = 4,
+                     get_text = school_short_name,
+                     get_color =  scale_color_category(col = school_short_name,
+                                                       legend = FALSE,
+                                                       palette = viridis(n_schools)),
+                                                       #palette = ideacolors::idea_palettes$qual), # not enough
+                     tooltip = c(school_short_name),
+                     pickable = FALSE,
+                     name = "IDEA Schools",
+                     group_name = "Schools"
+                     )
+
+    %>%
+
       add_scatterplot_layer(data = sf_children_by_age_block %>% arrange(variable),
                             get_position = geometry,
                             get_fill_color = scale_color_category(col = variable,
@@ -148,7 +194,14 @@ server <- function(input, output) {
 
     %>%
 
-      add_scatterplot_layer(data = sf_children_in_poverty %>% filter(variable != "Total") %>% arrange(variable),
+      add_scatterplot_layer(data = sf_children_in_poverty %>%
+                              filter(!variable %in% c("Total",
+                                                      "Income in the past 12 months below the poverty level",
+                                                      "Enrolled in school",
+                                                      "Enrolled in college undergraduate years",
+                                                      "Enrolled in graduate or professional school",
+                                                      "Not enrolled in school")) %>%
+                              arrange(variable),
                             get_position = geometry,
                             get_fill_color = scale_color_category(col = variable,
                                                                   legend = TRUE,
@@ -169,7 +222,7 @@ server <- function(input, output) {
                                                                   palette = ideacolors::idea_palettes$qual),
                             radius_min_pixels = 2,
                             opacity = .15,
-                            visible = TRUE,
+                            visible = FALSE,
                             group_name = "Dot Density",
                             name = "Household Income"
                             )
@@ -212,15 +265,21 @@ server <- function(input, output) {
                           name = "Students in Poverty"
                           )
 
-    # add_polygon_layer(data = pp_site_drive_15_min_sf %>% filter(time == 10),
-    #                   get_polygon = geometry, opacity = .05,
-    #                   get_fill_color = scale_color_category(col=school_short_name,
-    #                                                         legend = FALSE,
-    #                                                         palette = ideacolors::idea_palettes$qual),
-    #                   name = "10-min drivetime",
-    #                   group_name = "Schools",
-    #                   visible = FALSE,
-    # ) %>%
+    %>%
+
+    add_polygon_layer(data = sf_isochrones_idea_mvp,
+                      get_polygon = geometry,
+                      opacity = .05,
+                      get_fill_color = scale_color_category(col = school_short_name,
+                                                            legend = FALSE,
+                                                            palette = viridis(n_schools)),
+                                                            #palette = ideacolors::idea_palettes$qual), # too few
+                      name = "Isochrones",
+                      #group_name = "Schools",
+                      visible = FALSE,
+    )
+
+    # %>%
     #
     # add_heatmap_layer(data = sf_students_austin,
     #                   get_position = geometry,
@@ -253,31 +312,8 @@ server <- function(input, output) {
       #                       name = "Current IDEA Students"
       # ) %>%
       #
-      # add_scatterplot_layer(data = sf_schools_austin,
-      #                       get_position = geometry,
-      #                       radius_min_pixels = 4,
-      #                       get_fill_color = scale_color_category(col=school_short_name,
-      #                                                             legend = FALSE,
-      #                                                             palette = ideacolors::idea_palettes$qual),
-      #                       tooltip = c(school_short_name),
-      #                       pickable = TRUE,
-      #                       name = "IDEA Schools",
-      #                       group_name = "Schools"
-      # )  %>%
-      #
-      # add_text_layer(data = sf_schools_austin,
-      #                get_position = geometry,size_min_pixels = 13, size_max_pixels = 14,get_text_anchor = "end",
-      #                #radius_min_pixels = 4,
-      #                get_text = school_short_name,
-      #                get_color =  scale_color_category(col=school_short_name,
-      #                                                  legend = FALSE,
-      #                                                  palette = ideacolors::idea_palettes$qual),
-      #                tooltip = c(school_short_name),
-      #                pickable = FALSE,
-      #                name = "IDEA Schools",
-      #                group_name = "Schools"
-      )
-  #)
+
+  )
 }
 
 
