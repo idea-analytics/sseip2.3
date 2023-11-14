@@ -7,11 +7,11 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2023-11-08
-- Last deployed (development): 2023-11-08
+- Last modified: 2023-11-11
+- Last deployed (development): 2023-11-11
 - Last deployed (production): 
 - Inputs: aline.orr/acs_data
-- Outputs: 
+- Outputs: sf_dot_density_mvp
 
 ```{r setup_doc}
 knitr::opts_chunk$set(echo = TRUE)
@@ -172,7 +172,10 @@ sf_household_income <- sf_acs %>%
     table_short_name == "Household income",
     county %in% mvp_counties
   ) %>% # pull specific ACS table
-  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  filter(
+    variable != "Total",
+    !st_is_empty(.)
+  ) %>% # filter out NA geometry to prep for dot density
   
   # consolidate variable groups
   mutate(
@@ -208,7 +211,10 @@ sf_students_in_poverty <- sf_acs %>%
     table_short_name == "Students in poverty",
     county %in% mvp_counties
   ) %>% # pull specific ACS table
-  filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
+  filter(
+    variable != "Total",
+    !st_is_empty(.)
+  ) %>% # filter out NA geometry to prep for dot density
   
   # convert to dot density
   tidycensus::as_dot_density(
@@ -308,7 +314,7 @@ board_posit %>%
   pin_write(
     sf_dot_density_mvp,
     name = "dashboard_dot_density_data",
-    description = "Dashboard-ready dot-density ACS data",
+    description = "Dot-density ACS data",
     type = "qs"
   )
 ```
