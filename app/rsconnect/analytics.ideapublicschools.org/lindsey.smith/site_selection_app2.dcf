@@ -1,0 +1,13 @@
+name: site_selection_app2
+title: site selection app
+username: lindsey.smith
+account: lindsey.smith
+server: analytics.ideapublicschools.org
+hostUrl: https://analytics.ideapublicschools.org/__api__
+appId: 185
+bundleId: 6472
+url: https://analytics.ideapublicschools.org/site-selection-app-dev/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: 01_Austin_Interactive_Map_Shiny.R|02_Austin_Interactive_Map_Shiny_new_structure.R|03b_app_structure_using_Austin_Interactive_Map (option 2).R
