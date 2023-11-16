@@ -126,8 +126,8 @@ server <- function(input, output) {
           initial_bounds = sf_household_income %>% filter(county == input$region),
           theme = "light",
           editor = FALSE,
-          blending_mode = "subtractive",
-          height = 800
+          blending_mode = "subtractive" #,
+          #height = 800
     )
 
     %>%
@@ -137,10 +137,10 @@ server <- function(input, output) {
                             radius_min_pixels = 4,
                             get_fill_color = scale_color_category(col = school_short_name,
                                                                   legend = FALSE,
-                                                                  palette = viridis(n_schools)),
+                                                                  palette = turbo(n_schools)), # turbo is part of the viridis package
                                                                   #palette = ideacolors::idea_palettes$qual), # not enough
-                            tooltip = c(school_short_name),
-                            pickable = TRUE,
+                            tooltip = c(school_short_name), # defines which columns are displayed when hovered over
+                            pickable = TRUE, # allows for the tooltip names to be shown when hovered over
                             name = "IDEA Schools",
                             group_name = "Schools"
                             )
@@ -154,12 +154,10 @@ server <- function(input, output) {
                      get_text_anchor = "end",
                      #radius_min_pixels = 4,
                      get_text = school_short_name,
-                     get_color =  scale_color_category(col = school_short_name,
-                                                       legend = FALSE,
-                                                       palette = viridis(n_schools)),
-                                                       #palette = ideacolors::idea_palettes$qual), # not enough
-                     tooltip = c(school_short_name),
-                     pickable = FALSE,
+                     get_color = scale_color_category(col = school_short_name,
+                                                      legend = FALSE,
+                                                      palette = turbo(n_schools)), # turbo is part of the viridis package
+                                                      #palette = ideacolors::idea_palettes$qual), # not enough
                      name = "IDEA Schools",
                      group_name = "Schools"
                      )
