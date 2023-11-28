@@ -1,10 +1,17 @@
-# TODO: arrange helps, but doesn't put levels in the order we want in legend: use factor level sort
-# TODO: color palette by region -- add color for each school in .csv then recreate sf file -- use that variable for the colors
+# TODO: remove Burleson County
+# TODO: drive time layer by timings?
+# TODO: palettes
+# - link colors to schools
+# - maybe identify color for each school in .csv then recreate sf file and use the color variable as the palette
 # TODO: widen the legend (mobility levels do not fit)
 # TODO: modify labels in legend
 # TODO: order the dot densities should be in and what is default "on"
 # TODO: maybe move layers and legend off the map to see the map more? (if we can)
 # TODO: Is there a way to select, say a particular age group, within the legend?
+
+# TODO AFTER MVP
+# TODO: Round Rock, Parmer Park, Pflugerville labeled as Tarrant County somewhere - Burleson was listed as Burleson County instead of Tarrant County, will update after Dec break
+# TODO: mobility file missing county
 
 # load libraries
 
@@ -16,7 +23,7 @@ library(rdeck)
 sf::sf_use_s2(FALSE)
 library(shiny)
 # library(mapboxapi)
-# library(here)
+library(here)
 # install.packages("devtools")
 # devtools::install_github("idea-analytics/ideacolors")
 library(ideacolors)
@@ -52,7 +59,7 @@ df_counties_tx <- tribble(
 
   "TX", "Tarrant County", "Tarrant County",
   "TX", "Tarrant County", "Parker County",
-  "TX", "Tarrant County", "Burleson County",
+  "TX", "Tarrant County", "Burleson County", # This is incorrect...Burleson County is the College Station area.
 )
 
 df_counties_ips <- tribble(
@@ -73,20 +80,22 @@ df_counties_all <- bind_rows(
 )
 
 # load mvp data
-load("sf_dot_density_mvp.rda")
-load("sf_isochrones_idea_mvp.rda")
-load("sf_schools_idea_mvp.rda")
-load("sf_students_idea_mvp.rda")
+load("etl/sf_dot_density_mvp.rda")
+load("etl/sf_isochrones_idea_mvp.rda")
+load("etl/sf_schools_idea_mvp.rda")
+load("etl/sf_students_idea_mvp.rda")
 
 sf_dot_density_mvp <- st_as_sf(sf_dot_density_mvp) %>%
-  inner_join(df_counties_all %>% select(region, county), by = "county")
+  inner_join(df_counties_all %>% select(region, county), by = "county") %>%
+  filter(county != "")
 
 sf_isochrones_idea_mvp <- st_as_sf(sf_isochrones_idea_mvp) %>%
   inner_join(df_counties_all %>% select(region, county), by = "county")
 
 sf_schools_idea_mvp <- st_as_sf(sf_schools_idea_mvp)
 
-sf_students_idea_mvp <- st_as_sf(sf_students_idea_mvp)
+sf_students_idea_mvp <- st_as_sf(sf_students_idea_mvp) %>%
+  rename(region = region_description)
 
 # create separate data frames for block groups and tracts
 
@@ -117,6 +126,8 @@ sf_children_by_age_block <- sf_dot_density_mvp %>%
 sf_children_in_poverty <- sf_dot_density_mvp %>%
   filter(table_short_name == "Children in poverty",
          geography == "tract")
+
+sf_children_by_age_block %>% distinct(variable)
 
 # ## load data
 #
@@ -150,13 +161,8 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput(inputId = "region_name",
                   label = "Select your region of interest",
-                  choices = c("Austin",
-                              "Cincinnati",
-                              "Jacksonville",
-                              "Permian Basin",
-                              "Tampa",
-                              "Tarrant County"
-                              )),
+                  choices = sf_schools_idea_mvp$region
+                  ),
     ),
 
     mainPanel(
@@ -172,7 +178,7 @@ server <- function(input, output) {
   output$map <- renderRdeck(
 
     rdeck(map_style = mapbox_gallery_frank(),
-          initial_bounds = sf_schools_idea_mvp %>% filter(region == input$region_name),
+          initial_bounds = sf_household_income %>% filter(region == input$region_name),
           theme = "light",
           editor = FALSE,
           blending_mode = "subtractive" #,
@@ -181,21 +187,166 @@ server <- function(input, output) {
 
     %>%
 
-      add_scatterplot_layer(data = sf_schools_idea_mvp,
+      # Isochrones (drive distance)
+      add_polygon_layer(data = sf_isochrones_idea_mvp,
+                        get_polygon = geometry,
+                        opacity = .01,
+                        get_fill_color = scale_color_category(col = school_short_name,
+                                                              legend = FALSE,
+                                                              palette = viridis(n_schools)),
+                        #palette = ideacolors::idea_palettes$qual), # too few
+                        name = "Drive Times",
+                        #group_name = "Schools",
+                        visible = FALSE,
+      )
+
+    %>%
+
+      # Students in Poverty
+      add_scatterplot_layer(data = sf_students_in_poverty %>%
+                              filter(!variable %in% c("Total",
+                                                      "Income in the past 12 months below the poverty level",
+                                                      "Enrolled in school",
+                                                      "Enrolled in college undergraduate years",
+                                                      "Enrolled in graduate or professional school",
+                                                      "Not enrolled in school")) %>%
+                              mutate(variable = as.factor(variable)) %>%
+                              mutate(variable = ordered(variable, levels = c("Enrolled in nursery school, preschool",
+                                                                             "Enrolled in kindergarten",
+                                                                             "Enrolled in grade 1 to grade 4",
+                                                                             "Enrolled in grade 5 to grade 8",
+                                                                             "Enrolled in grade 9 to grade 12",
+                                                                             "Not enrolled in school"))),
                             get_position = geometry,
-                            radius_min_pixels = 4,
-                            get_fill_color = scale_color_category(col = school_short_name,
-                                                                  legend = FALSE,
-                                                                  palette = turbo(n_schools)), # turbo is part of the viridis package
-                                                                  #palette = ideacolors::idea_palettes$qual), # not enough
-                            tooltip = c(school_short_name), # defines which columns are displayed when hovered over
-                            pickable = TRUE, # allows for the tooltip names to be shown when hovered over
-                            name = "IDEA Schools",
-                            group_name = "Schools"
+                            get_fill_color = scale_color_category(col = variable,
+                                                                  legend = TRUE,
+                                                                  palette = ideacolors::idea_palette_ramp()(100)),
+                            #get_fill_color = "#9A95A2",
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Income",
+                            name = "Students in Poverty"
                             )
 
     %>%
 
+      # Household Income
+      add_scatterplot_layer(data = sf_household_income %>%
+                              filter(variable != "Total") %>%
+                              mutate(variable = as.factor(variable)) %>%
+                              mutate(variable = ordered(variable, levels = c("Less than $20,000",
+                                                                             "$20,000 to $29,999",
+                                                                             "$30,000 to $39,999",
+                                                                             "$40,000 to $49,999",
+                                                                             "$50,000 to $59,999",
+                                                                             "$60,000 to $74,999",
+                                                                             "$75,000 to $99,999",
+                                                                             "$100,000 or more"))),
+                            get_position = geometry,
+                            get_fill_color = scale_color_category(col = variable,
+                                                                  legend = TRUE,
+                                                                  palette = ideacolors::idea_palettes$qual),
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Income",
+                            name = "Household Income"
+      )
+
+    %>%
+
+      # Children in Poverty
+      add_scatterplot_layer(data = sf_children_in_poverty %>%
+                              mutate(variable = as.factor(variable)) %>%
+                              mutate(variable = ordered(variable, levels = c("Under 1.00",
+                                                                             "1.00 to 1.99"))),
+                            get_position = geometry,
+                            get_fill_color = scale_color_category(col = variable,
+                                                                  legend = TRUE,
+                                                                  palette = ideacolors::idea_palettes$greenorange),
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Income",
+                            name = "Children in Poverty"
+      )
+
+    %>%
+
+      # Households with Children Under 18
+      add_scatterplot_layer(data = sf_households_under18,
+                            get_position = geometry,
+                            get_fill_color = ideacolors::idea_colors$melon,
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Population of Children",
+                            name = "Households with Children Under 18"
+      )
+
+    %>%
+
+      # Children by Age (Tract)
+      add_scatterplot_layer(data = sf_children_by_age_tract %>%
+                              mutate(variable = as.factor(variable)) %>%
+                              mutate(variable = ordered(variable, levels = c("Under 3 years",
+                                                                             "3 and 4 years",
+                                                                             "5 years",
+                                                                             "6 to 8 years",
+                                                                             "9 to 11 years",
+                                                                             "12 to 14 years",
+                                                                             "15 to 17 years"))),
+                            get_position = geometry,
+                            get_fill_color = scale_color_category(col = variable,
+                                                                  legend = TRUE,
+                                                                  palette = ideacolors::idea_palettes$div),
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Population of Children",
+                            name = "Children by Age (Tract)"
+      )
+
+    %>%
+
+      # Children by Age (Block)
+      add_scatterplot_layer(data = sf_children_by_age_block %>%
+                              mutate(variable = as.factor(variable)) %>%
+                              mutate(variable = ordered(variable, levels = c("Under 5 years",
+                                                                             "5 to 9 years",
+                                                                             "10 to 14 years",
+                                                                             "15 to 17 years"))),
+                            get_position = geometry,
+                            get_fill_color = scale_color_category(col = variable,
+                                                                  legend = TRUE,
+                                                                  palette = ideacolors::idea_palettes$qual),
+                            radius_min_pixels = 2,
+                            opacity = .15,
+                            visible = FALSE,
+                            group_name = "Population of Children",
+                            name = "Children by Age (Block)"
+      )
+
+    %>%
+
+      # IDEA Schools
+      add_scatterplot_layer(data = sf_schools_idea_mvp,
+                          get_position = geometry,
+                          radius_min_pixels = 4,
+                          get_fill_color = scale_color_category(col = school_short_name,
+                                                                legend = FALSE,
+                                                                #palette = turbo(n_schools)), # turbo is part of the viridis package
+                                                                palette = ideacolors::idea_palettes$qual), # not enough
+                          tooltip = c(school_short_name), # defines which columns are displayed when hovered over
+                          pickable = TRUE, # allows for the tooltip names to be shown when hovered over
+                          group_name = "IDEA",
+                          name = "Schools"
+    )
+
+    %>%
+
+      # IDEA School Short Name
       add_text_layer(data = sf_schools_idea_mvp,
                      get_position = geometry,
                      size_min_pixels = 13,
@@ -205,82 +356,31 @@ server <- function(input, output) {
                      get_text = school_short_name,
                      get_color = scale_color_category(col = school_short_name,
                                                       legend = FALSE,
-                                                      palette = turbo(n_schools)), # turbo is part of the viridis package
-                                                      #palette = ideacolors::idea_palettes$qual), # not enough
-                     name = "IDEA Schools",
-                     group_name = "Schools"
-                     )
-
-    %>%
-
-      add_scatterplot_layer(data = sf_children_by_age_block %>% arrange(variable),
-                            get_position = geometry,
-                            get_fill_color = scale_color_category(col = variable,
-                                                                  legend = TRUE,
-                                                                  palette = ideacolors::idea_palettes$qual),
-                            radius_min_pixels = 2,
-                            opacity = .15,
-                            visible = FALSE,
-                            group_name = "Dot Density",
-                            name = "Children by Age (Block)"
+                                                      #palette = turbo(n_schools)), # turbo is part of the viridis package
+                                                      palette = ideacolors::idea_palettes$qual), # not enough
+                     group_name = "IDEA",
+                     name = "Schools"
       )
 
     %>%
 
-      add_scatterplot_layer(data = sf_children_by_age_tract %>% arrange(variable),
+      # Current IDEA students
+      add_scatterplot_layer(data = sf_students_idea_mvp,
                             get_position = geometry,
-                            get_fill_color = scale_color_category(col = variable,
-                                                                  legend = TRUE,
-                                                                  palette = ideacolors::idea_palettes$div),
+                            # get_fill_color = scale_color_category(col = school_short_name,
+                            #                                       legend = TRUE,
+                            #                                       #palette = turbo(n_schools)),
+                            #                                       palette = ideacolors::idea_palettes$qual),
+                            get_fill_color = "#0079C1",
                             radius_min_pixels = 2,
                             opacity = .15,
                             visible = FALSE,
-                            group_name = "Dot Density",
-                            name = "Children by Age (Tract)"
+                            group_name = "IDEA",
+                            name = "Current Students"
       )
 
-    %>%
-
-      add_scatterplot_layer(data = sf_children_in_poverty %>% arrange(variable),
-                            get_position = geometry,
-                            get_fill_color = scale_color_category(col = variable,
-                                                                  legend = TRUE,
-                                                                  palette = ideacolors::idea_palettes$greenorange),
-                            radius_min_pixels = 2,
-                            opacity = .15,
-                            visible = FALSE,
-                            group_name = "Dot Density",
-                            name = "Children in Poverty"
-      )
-
-    %>%
-
-      add_scatterplot_layer(data = sf_household_income %>% filter(variable != "Total") %>% arrange(variable),
-                            get_position = geometry,
-                            get_fill_color = scale_color_category(col = variable,
-                                                                  legend = TRUE,
-                                                                  palette = ideacolors::idea_palettes$qual),
-                            radius_min_pixels = 2,
-                            opacity = .15,
-                            visible = FALSE,
-                            group_name = "Dot Density",
-                            name = "Household Income"
-                            )
-
-    %>%
-
-      add_scatterplot_layer(data = sf_households_under18,
-                            get_position = geometry,
-                            get_fill_color = ideacolors::idea_colors$melon,
-                            radius_min_pixels = 2,
-                            opacity = .15,
-                            visible = FALSE,
-                            group_name = "Dot Density",
-                            name = "Households with Children Under 18"
-      )
-
-    %>%
-
+    # %>%
+    #
     #   add_scatterplot_layer(data = sf_mobility %>% filter(variable != "Total") %>% arrange(variable),
     #                         get_position = geometry,
     #                         get_fill_color = scale_color_category(col = variable,
@@ -289,47 +389,11 @@ server <- function(input, output) {
     #                         radius_min_pixels = 2,
     #                         opacity = .15,
     #                         visible = FALSE,
-    #                         group_name = "Dot Density",
-    #                         name = "Mobility"
+    #                         group_name = "Mobility",
+    #                         #name = "Mobility"
     #   )
     #
     # %>%
-
-      add_scatterplot_layer(data = sf_students_in_poverty %>%
-                              filter(!variable %in% c("Total",
-                                                      "Income in the past 12 months below the poverty level",
-                                                      "Enrolled in school",
-                                                      "Enrolled in college undergraduate years",
-                                                      "Enrolled in graduate or professional school",
-                                                      "Not enrolled in school")),
-                          get_position = geometry,
-                          get_fill_color = scale_color_category(col = variable,
-                                                                legend = TRUE,
-                                                                palette = ideacolors::idea_palettes$blueorange), # find another palette
-                          #get_fill_color = "#9A95A2",
-                          radius_min_pixels = 2,
-                          opacity = .15,
-                          visible = FALSE,
-                          group_name = "Dot Density",
-                          name = "Students in Poverty"
-                          )
-
-    %>%
-
-    add_polygon_layer(data = sf_isochrones_idea_mvp,
-                      get_polygon = geometry,
-                      opacity = .01,
-                      get_fill_color = scale_color_category(col = school_short_name,
-                                                            legend = FALSE,
-                                                            palette = viridis(n_schools)),
-                                                            #palette = ideacolors::idea_palettes$qual), # too few
-                      name = "Isochrones",
-                      #group_name = "Schools",
-                      visible = FALSE,
-    )
-
-    # %>%
-    #
     # add_heatmap_layer(data = sf_students_austin,
     #                   get_position = geometry,
     #                   opacity = .25,
