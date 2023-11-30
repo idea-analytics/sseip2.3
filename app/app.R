@@ -1,17 +1,32 @@
-# TODO: remove Burleson County
-# TODO: drive time layer by timings?
-# TODO: palettes
-# - link colors to schools
-# - maybe identify color for each school in .csv then recreate sf file and use the color variable as the palette
+# 11/30 meeting:
+# review groupings on graph
+# review hex code process
+# identify reason files are not loading when "Run App"
+# isochrone is a driving distance of how far?
+# children in poverty under 1.00 and 1.00 to 1.99 meaning?
+# app title
+
+# not sure if these are possible
 # TODO: widen the legend (mobility levels do not fit)
-# TODO: modify labels in legend
-# TODO: order the dot densities should be in and what is default "on"
 # TODO: maybe move layers and legend off the map to see the map more? (if we can)
 # TODO: Is there a way to select, say a particular age group, within the legend?
 
-# TODO AFTER MVP
-# TODO: Round Rock, Parmer Park, Pflugerville labeled as Tarrant County somewhere - Burleson was listed as Burleson County instead of Tarrant County, will update after Dec break
+# after MVP
+# TODO: Round Rock, Parmer Park, Pflugerville labeled as Tarrant County somewhere? - Burleson was listed as Burleson County instead of Tarrant County, will update after Dec break
 # TODO: mobility file missing county
+
+# DONE
+# TODO: remove Burleson County
+# TODO: initial region selected (instead of blank)
+# remove school legend
+# TODO: hex codes by school
+# - create .csv with hex codes
+# - join colors to schools in the sf's
+# - have R pull these hex codes
+# TODO: current student dots by school
+# - same colors as school names
+# - legend with just the schools in view
+# rename students in poverty legend values to fit in legend box
 
 # load libraries
 
@@ -23,7 +38,7 @@ library(rdeck)
 sf::sf_use_s2(FALSE)
 library(shiny)
 # library(mapboxapi)
-library(here)
+# library(here)
 # install.packages("devtools")
 # devtools::install_github("idea-analytics/ideacolors")
 library(ideacolors)
@@ -69,7 +84,7 @@ df_counties_ips <- tribble(
 
   "FL", "Jacksonville", "Duval County",
   "FL", "Tampa", "Hillsborough County",
-  "FL", "Tampa", "Polk County" ,
+  "FL", "Tampa", "Polk County",
 
   "LA", "Southern Louisiana", "East Baton Rouge Parish",
 )
@@ -80,22 +95,29 @@ df_counties_all <- bind_rows(
 )
 
 # load mvp data
-load("etl/sf_dot_density_mvp.rda")
-load("etl/sf_isochrones_idea_mvp.rda")
-load("etl/sf_schools_idea_mvp.rda")
-load("etl/sf_students_idea_mvp.rda")
+load("app/sf_dot_density_mvp.rda")
+load("app/sf_isochrones_idea_mvp.rda")
+load("app/sf_schools_idea_mvp.rda")
+load("app/sf_students_idea_mvp.rda")
+
+# read in school hex codes
+hex_codes <- read.csv("app/school_hex_codes.csv")
 
 sf_dot_density_mvp <- st_as_sf(sf_dot_density_mvp) %>%
   inner_join(df_counties_all %>% select(region, county), by = "county") %>%
-  filter(county != "")
+  filter(county != "Burleson County")
 
 sf_isochrones_idea_mvp <- st_as_sf(sf_isochrones_idea_mvp) %>%
-  inner_join(df_counties_all %>% select(region, county), by = "county")
+  inner_join(df_counties_all %>% select(region, county), by = "county") %>%
+  left_join(hex_codes %>% select(school_short_name, hex_code), by = "school_short_name") %>%
+  filter(county != "Burleson County")
 
-sf_schools_idea_mvp <- st_as_sf(sf_schools_idea_mvp)
+sf_schools_idea_mvp <- st_as_sf(sf_schools_idea_mvp) %>%
+  left_join(hex_codes %>% select(school_short_name, hex_code), by = "school_short_name")
 
 sf_students_idea_mvp <- st_as_sf(sf_students_idea_mvp) %>%
-  rename(region = region_description)
+  rename(region = region_description) %>%
+  left_join(hex_codes %>% select(school_short_name, hex_code), by = "school_short_name")
 
 # create separate data frames for block groups and tracts
 
@@ -127,20 +149,6 @@ sf_children_in_poverty <- sf_dot_density_mvp %>%
   filter(table_short_name == "Children in poverty",
          geography == "tract")
 
-sf_children_by_age_block %>% distinct(variable)
-
-# ## load data
-#
-# # simple frame school locations
-# load("sf_schools_austin.RData")
-# #load(here::here("sf_schools_austin.RData"))
-# # simple frame student locations
-# load("sf_students_austin.RData")
-# # block_group_children
-# load("pp_children_bg_dots.Rdata")
-# # drive_times
-# load("pp_site_drive_15_min_sf.Rdata")
-
 # school count (for use with color palette)
 n_schools <- sf_schools_idea_mvp %>%
   distinct(school_short_name) %>%
@@ -161,15 +169,15 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput(inputId = "region_name",
                   label = "Select your region of interest",
-                  choices = sf_schools_idea_mvp$region
-                  ),
-    ),
+                  choices = sort(unique(sf_schools_idea_mvp$region))
+                  )
+      ),
 
     mainPanel(
       rdeckOutput("map")
+      )
     )
-)
-)
+  )
 
 ## Define server logic required to make visuals
 
@@ -178,7 +186,8 @@ server <- function(input, output) {
   output$map <- renderRdeck(
 
     rdeck(map_style = mapbox_gallery_frank(),
-          initial_bounds = sf_household_income %>% filter(region == input$region_name),
+          initial_bounds = sf_household_income %>%
+            filter(region == input$region_name),
           theme = "light",
           editor = FALSE,
           blending_mode = "subtractive" #,
@@ -191,16 +200,32 @@ server <- function(input, output) {
       add_polygon_layer(data = sf_isochrones_idea_mvp,
                         get_polygon = geometry,
                         opacity = .01,
-                        get_fill_color = scale_color_category(col = school_short_name,
-                                                              legend = FALSE,
-                                                              palette = viridis(n_schools)),
-                        #palette = ideacolors::idea_palettes$qual), # too few
-                        name = "Drive Times",
+                        # get_fill_color = scale_color_category(col = school_short_name,
+                        #                                       legend = FALSE,
+                        #                                       palette = viridis(n_schools)),
+                        #                                       #palette = ideacolors::idea_palettes$qual), # too few
+                        get_fill_color = hex_code,
+                        name = "Isochrones",
                         #group_name = "Schools",
                         visible = FALSE,
       )
 
     %>%
+
+    #   # Mobility
+    #   add_scatterplot_layer(data = sf_mobility %>% filter(variable != "Total") %>% arrange(variable),
+    #                         get_position = geometry,
+    #                         get_fill_color = scale_color_category(col = variable,
+    #                                                               legend = TRUE,
+    #                                                               palette = ideacolors::idea_palettes$blueorange),
+    #                         radius_min_pixels = 2,
+    #                         opacity = .15,
+    #                         visible = FALSE,
+    #                         group_name = "Mobility",
+    #                         #name = "Mobility"
+    #   )
+    #
+    # %>%
 
       # Students in Poverty
       add_scatterplot_layer(data = sf_students_in_poverty %>%
@@ -211,16 +236,23 @@ server <- function(input, output) {
                                                       "Enrolled in graduate or professional school",
                                                       "Not enrolled in school")) %>%
                               mutate(variable = as.factor(variable)) %>%
-                              mutate(variable = ordered(variable, levels = c("Enrolled in nursery school, preschool",
-                                                                             "Enrolled in kindergarten",
-                                                                             "Enrolled in grade 1 to grade 4",
-                                                                             "Enrolled in grade 5 to grade 8",
-                                                                             "Enrolled in grade 9 to grade 12",
-                                                                             "Not enrolled in school"))),
+                              # rename variable levels so they fit in legend
+                              mutate(variable_new = case_when(variable == "Enrolled in nursery school, preschool" ~ "Enrolled in nursery/preschool",
+                                                              variable == "Enrolled in kindergarten" ~ "Enrolled in kindergarten",
+                                                              variable == "Enrolled in grade 1 to grade 4" ~ "Enrolled in grades 1-4",
+                                                              variable == "Enrolled in grade 5 to grade 8" ~ "Enrolled in grades 5-8",
+                                                              variable == "Enrolled in grade 9 to grade 12" ~ "Enrolled in grades 9-12",
+                                                              variable == "Not enrolled in school" ~ "Not enrolled in school")) %>%
+                              mutate(variable_new = ordered(variable_new, levels = c("Enrolled in nursery/preschool",
+                                                                                     "Enrolled in kindergarten",
+                                                                                     "Enrolled in grades 1-4",
+                                                                                     "Enrolled in grades 5-8",
+                                                                                     "Enrolled in grades 9-12",
+                                                                                     "Not enrolled in school"))),
                             get_position = geometry,
-                            get_fill_color = scale_color_category(col = variable,
+                            get_fill_color = scale_color_category(col = variable_new,
                                                                   legend = TRUE,
-                                                                  palette = ideacolors::idea_palette_ramp()(100)),
+                                                                  palette = ideacolors::idea_palettes$qual),
                             #get_fill_color = "#9A95A2",
                             radius_min_pixels = 2,
                             opacity = .15,
@@ -331,13 +363,21 @@ server <- function(input, output) {
     %>%
 
       # IDEA Schools
-      add_scatterplot_layer(data = sf_schools_idea_mvp,
+      add_scatterplot_layer(data = sf_schools_idea_mvp %>% arrange(school_short_name),
                           get_position = geometry,
                           radius_min_pixels = 4,
-                          get_fill_color = scale_color_category(col = school_short_name,
-                                                                legend = FALSE,
-                                                                #palette = turbo(n_schools)), # turbo is part of the viridis package
-                                                                palette = ideacolors::idea_palettes$qual), # not enough
+                          # get_fill_color = scale_color_category(col = school_short_name,
+                          #                                       legend = FALSE,
+                          #                                       #palette = turbo(n_schools)), # turbo is part of the viridis package
+                          #                                       palette = ideacolors::idea_palettes$qual), # not enough
+                          # get_fill_color = scale_color_identity(col = school_short_name,
+                          #                                       legend = FALSE,
+                          #                                       palette = hex_code),
+                          # get_fill_color = scale_color_identity(col = hex_code,
+                          #                                       legend = FALSE),
+                          # get_fill_color = scale_color_manual(values = hex_code),
+                          # get_fill_color = scale_color_manual(values = c(hex_code)),
+                          get_fill_color = hex_code,
                           tooltip = c(school_short_name), # defines which columns are displayed when hovered over
                           pickable = TRUE, # allows for the tooltip names to be shown when hovered over
                           group_name = "IDEA",
@@ -347,17 +387,18 @@ server <- function(input, output) {
     %>%
 
       # IDEA School Short Name
-      add_text_layer(data = sf_schools_idea_mvp,
+      add_text_layer(data = sf_schools_idea_mvp %>% arrange(school_short_name),
                      get_position = geometry,
                      size_min_pixels = 13,
                      size_max_pixels = 14,
                      get_text_anchor = "end",
-                     #radius_min_pixels = 4,
+                     # radius_min_pixels = 4,
                      get_text = school_short_name,
-                     get_color = scale_color_category(col = school_short_name,
-                                                      legend = FALSE,
-                                                      #palette = turbo(n_schools)), # turbo is part of the viridis package
-                                                      palette = ideacolors::idea_palettes$qual), # not enough
+                     # get_color = scale_color_category(col = school_short_name,
+                     #                                  legend = FALSE,
+                     #                                  #palette = turbo(n_schools)), # turbo is part of the viridis package
+                     #                                  palette = ideacolors::idea_palettes$qual), # not enough
+                     get_color = hex_code,
                      group_name = "IDEA",
                      name = "Schools"
       )
@@ -365,71 +406,22 @@ server <- function(input, output) {
     %>%
 
       # Current IDEA students
-      add_scatterplot_layer(data = sf_students_idea_mvp,
+      add_scatterplot_layer(data = sf_students_idea_mvp %>% arrange(school_short_name),
                             get_position = geometry,
                             # get_fill_color = scale_color_category(col = school_short_name,
                             #                                       legend = TRUE,
                             #                                       #palette = turbo(n_schools)),
                             #                                       palette = ideacolors::idea_palettes$qual),
-                            get_fill_color = "#0079C1",
+                            # get_fill_color = "#0079C1",
+                            get_fill_color = hex_code,
                             radius_min_pixels = 2,
                             opacity = .15,
                             visible = FALSE,
                             group_name = "IDEA",
                             name = "Current Students"
       )
-
-    # %>%
-    #
-    #   add_scatterplot_layer(data = sf_mobility %>% filter(variable != "Total") %>% arrange(variable),
-    #                         get_position = geometry,
-    #                         get_fill_color = scale_color_category(col = variable,
-    #                                                               legend = TRUE,
-    #                                                               palette = ideacolors::idea_palettes$blueorange),
-    #                         radius_min_pixels = 2,
-    #                         opacity = .15,
-    #                         visible = FALSE,
-    #                         group_name = "Mobility",
-    #                         #name = "Mobility"
-    #   )
-    #
-    # %>%
-    # add_heatmap_layer(data = sf_students_austin,
-    #                   get_position = geometry,
-    #                   opacity = .25,
-    #                   name = "Current IDEA student density",
-    #                   group_name = "Heatmaps",
-    #                   visible = FALSE
-    # ) %>%
-    #
-    # add_heatmap_layer(data = pp_children_bg_dots,
-    #                   get_position = geometry,
-    #                   opacity = .4,
-    #                   visible = FALSE,
-    #                   color_range = viridisLite::turbo(6, direction = 1),
-    #                   name = "Est. school-aged children density",
-    #                   group_name = "Heatmaps",
-    #                   threshold = .5
-    # ) %>%
-    #
-      # add_scatterplot_layer(data = sf_students_austin %>% ungroup() %>% arrange(school_short_name) ,
-      #                       get_position = geometry,
-      #                       get_fill_color = scale_color_category(col=school_short_name,
-      #                                                             legend = TRUE,
-      #                                                             palette = ideacolors::idea_palettes$qual),
-      #                       #get_fill_color = ideacolors::idea_colors$lime,
-      #                       radius_min_pixels = 2,
-      #                       opacity = .5,
-      #                       visible = FALSE,
-      #                       group_name = "Scatterplots",
-      #                       name = "Current IDEA Students"
-      # ) %>%
-      #
-
   )
-}
-
-
+  }
 
 ## Run the application
 shinyApp(ui = ui, server = server)
