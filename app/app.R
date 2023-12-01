@@ -1,10 +1,24 @@
-# 11/30 meeting:
-# review groupings on graph
-# review hex code process
-# identify reason files are not loading when "Run App"
-# isochrone is a driving distance of how far?
-# children in poverty under 1.00 and 1.00 to 1.99 meaning?
-# app title
+# 12/5 meeting:
+
+
+# TODO
+# children in poverty under 1.00 and 1.00 to 1.99 meaning? <1X poverty, 1X-2X poverty
+# schools in top layer
+# make school dots a star
+# hex color changes:
+# - Austin: swap Rundberg and Kyle colors
+# -- new Pflugerville color, color family: burnt orange
+# -- Montopolis different (darker) green
+# - Cincinnati: switch Valley View and Pippin (blue-ish color)
+# -- Pippin to darker green
+# - Jax: switch River Bluff and Compass
+# - PB: switch Fairfield and Yukon
+# - Tampa: switch Ignite and Hope
+# -- Lakeland purple
+# -- Reynolds darker green
+# - TC: Rise darker green
+# -- orange darker
+# -- aqua blue to purple
 
 # not sure if these are possible
 # TODO: widen the legend (mobility levels do not fit)
@@ -16,17 +30,11 @@
 # TODO: mobility file missing county
 
 # DONE
-# TODO: remove Burleson County
-# TODO: initial region selected (instead of blank)
-# remove school legend
-# TODO: hex codes by school
-# - create .csv with hex codes
-# - join colors to schools in the sf's
-# - have R pull these hex codes
-# TODO: current student dots by school
-# - same colors as school names
-# - legend with just the schools in view
-# rename students in poverty legend values to fit in legend box
+# app title: Site Location Explorer
+# move isochrones under IDEA
+
+# hex codes, show
+# show_col(idea_palette_ramp()(6))
 
 # load libraries
 
@@ -162,7 +170,7 @@ options(rdeck.mapbox_access_token = Sys.getenv("MAPBOX_API_TOKEN"))
 ui <- fluidPage(
 
   # Application title
-  titlePanel("Our Cool Title"),
+  titlePanel("Site Location Explorer"),
 
   # set up side panel with multiple options
   sidebarLayout(
@@ -196,22 +204,6 @@ server <- function(input, output) {
 
     %>%
 
-      # Isochrones (drive distance)
-      add_polygon_layer(data = sf_isochrones_idea_mvp,
-                        get_polygon = geometry,
-                        opacity = .01,
-                        # get_fill_color = scale_color_category(col = school_short_name,
-                        #                                       legend = FALSE,
-                        #                                       palette = viridis(n_schools)),
-                        #                                       #palette = ideacolors::idea_palettes$qual), # too few
-                        get_fill_color = hex_code,
-                        name = "Isochrones",
-                        #group_name = "Schools",
-                        visible = FALSE,
-      )
-
-    %>%
-
     #   # Mobility
     #   add_scatterplot_layer(data = sf_mobility %>% filter(variable != "Total") %>% arrange(variable),
     #                         get_position = geometry,
@@ -237,13 +229,13 @@ server <- function(input, output) {
                                                       "Not enrolled in school")) %>%
                               mutate(variable = as.factor(variable)) %>%
                               # rename variable levels so they fit in legend
-                              mutate(variable_new = case_when(variable == "Enrolled in nursery school, preschool" ~ "Enrolled in nursery/preschool",
+                              mutate(variable_new = case_when(variable == "Enrolled in nursery school, preschool" ~ "Enrolled in nursery/PK",
                                                               variable == "Enrolled in kindergarten" ~ "Enrolled in kindergarten",
                                                               variable == "Enrolled in grade 1 to grade 4" ~ "Enrolled in grades 1-4",
                                                               variable == "Enrolled in grade 5 to grade 8" ~ "Enrolled in grades 5-8",
                                                               variable == "Enrolled in grade 9 to grade 12" ~ "Enrolled in grades 9-12",
                                                               variable == "Not enrolled in school" ~ "Not enrolled in school")) %>%
-                              mutate(variable_new = ordered(variable_new, levels = c("Enrolled in nursery/preschool",
+                              mutate(variable_new = ordered(variable_new, levels = c("Enrolled in nursery/PK",
                                                                                      "Enrolled in kindergarten",
                                                                                      "Enrolled in grades 1-4",
                                                                                      "Enrolled in grades 5-8",
@@ -358,6 +350,22 @@ server <- function(input, output) {
                             visible = FALSE,
                             group_name = "Population of Children",
                             name = "Children by Age (Block)"
+      )
+
+    %>%
+
+      # Isochrones (drive distance)
+      add_polygon_layer(data = sf_isochrones_idea_mvp,
+                        get_polygon = geometry,
+                        opacity = .01,
+                        # get_fill_color = scale_color_category(col = school_short_name,
+                        #                                       legend = FALSE,
+                        #                                       palette = viridis(n_schools)),
+                        #                                       #palette = ideacolors::idea_palettes$qual), # too few
+                        get_fill_color = hex_code,
+                        name = "Drive Time Radius",
+                        group_name = "IDEA",
+                        visible = FALSE,
       )
 
     %>%
