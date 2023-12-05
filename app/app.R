@@ -1,6 +1,11 @@
 # 12/5 meeting:
-# - show completed tasks
 # - review hex colors
+# - any other modifications for MVP
+
+# TODO 12/5:
+
+# fix Travis coordinates
+#
 
 # TODO
 # make school dots a star or something else
@@ -16,42 +21,11 @@
 # TODO: mobility file missing county
 
 # DONE
-# app title: Site Location Explorer
-# move isochrones under IDEA
-# children in poverty under 1.00 and 1.00 to 1.99 meaning? <1X poverty, 1X-2X poverty
-# schools in top layer
-# changed school name "IDEA Fairfield" to "Fairfield" (sf_schools_idea_mvp)
-# hex color changes:
-# - Austin: swap Rundberg and Kyle colors
-# -- new Pflugerville color, color family: burnt orange
-# -- Montopolis different (darker) green
-# - Cincinnati: switch Valley View and Pippin (blue-ish color)
-# -- Pippin to darker green
-# - Jax: switch River Bluff and Compass
-# - PB: switch Fairfield and Yukon
-# - Tampa: switch Ignite and Hope
-# -- Lakeland purple
-# -- Reynolds darker green
-# - TC: Rise darker green
-# -- Edgecliff orange darker
-# -- Jim Wright to purple
-# - Jax: Compass purple
-# - PB: Zeneta dark green
-# -- Travis dark orange
-# - Tampa: Hope dark orange
-# -- Ignite violet (523249)
-# - TC: Burleson violet
-# - AUS: Del Valle #832161
-# -- Parmer Park english violet (#4B3F72)
-# - PB: Fairfield cyan (#119DA4)
-# - Tampa: Ignite cyan (#119DA4)
-# - Aus: Del Valle coral pink (#D7907B)
-# - Cin: Price Hill darker orange
-# - Jax: Lane darker orange
-# - AUS: Del Valle bittersweet (#F87060)
-# - AUS: Rundberg columbia blue (#AECFDF) -> moonstone (#4DA1A9) -> myrtle green (#587B7F)
-# - PB: Fairfield darker shade of same color, moonstone (#4DA1A9) -> myrtle green (#587B7F)
-# - Tampa: Ignite darker shade of same color, moonstone (#4DA1A9) -> myrtle green (#587B7F)
+# drive times in bottom layer
+# hex color
+# - AUS: switch Kyle and Parmer Park
+# -- switch Round Rock and Bluff Springs
+# -- Round Rock green (#00BC00)
 
 # hex codes, show
 # show_col(idea_palette_ramp()(6))
@@ -384,18 +358,6 @@ server <- function(input, output) {
 
     %>%
 
-      # Isochrones (drive distance)
-      add_polygon_layer(data = sf_isochrones_idea_mvp,
-                        get_polygon = geometry,
-                        opacity = .01,
-                        get_fill_color = hex_code,
-                        name = "Drive Time Radius",
-                        group_name = "IDEA",
-                        visible = FALSE,
-      )
-
-    %>%
-
       # IDEA Schools
       add_scatterplot_layer(data = sf_schools_idea_mvp %>%
                               arrange(school_short_name),
@@ -427,6 +389,18 @@ server <- function(input, output) {
                    group_name = "IDEA",
                    name = "Schools"
     )
+
+    %>%
+
+      # Isochrones (drive distance)
+      add_polygon_layer(data = sf_isochrones_idea_mvp,
+                        get_polygon = geometry,
+                        opacity = .01,
+                        get_fill_color = hex_code,
+                        name = "Drive Time Radius",
+                        group_name = "IDEA",
+                        visible = FALSE,
+      )
   )
   }
 

@@ -1,7 +1,3 @@
-# 12/5 meeting:
-# - show completed tasks
-# - review hex colors
-
 # TODO
 # make school dots a star or something else
 # try to include school selection in dropdown
@@ -18,7 +14,7 @@
 # DONE
 # app title: Site Location Explorer
 # move isochrones under IDEA
-# children in poverty under 1.00 and 1.00 to 1.99 meaning? <1X poverty, 1X-2X poverty
+# children in poverty under 1.00 and 1.00 to 1.99 meaning? < 1X poverty, 1X-2X poverty
 # schools in top layer
 # changed school name "IDEA Fairfield" to "Fairfield" (sf_schools_idea_mvp)
 # hex color changes:
