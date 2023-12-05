@@ -177,6 +177,11 @@ sf_children_in_poverty <- sf_dot_density_mvp %>%
   filter(table_short_name == "Children in poverty",
          geography == "tract")
 
+# school count (for use with color palette)
+n_schools <- sf_schools_idea_mvp %>%
+  distinct(school_short_name) %>%
+  summarize(count = n())
+
 ## mapbox token
 
 options(rdeck.mapbox_access_token = Sys.getenv("MAPBOX_API_TOKEN"))
@@ -213,7 +218,8 @@ server <- function(input, output) {
             filter(region == input$region_name),
           theme = "light",
           editor = FALSE,
-          blending_mode = "subtractive"
+          blending_mode = "subtractive" #,
+          #height = 800
     )
 
     %>%
@@ -374,6 +380,11 @@ server <- function(input, output) {
     add_scatterplot_layer(data = sf_students_idea_mvp %>%
                             arrange(school_short_name),
                           get_position = geometry,
+                          # get_fill_color = scale_color_category(col = school_short_name,
+                          #                                       legend = TRUE,
+                          #                                       #palette = turbo(n_schools)),
+                          #                                       palette = ideacolors::idea_palettes$qual),
+                          # get_fill_color = "#0079C1",
                           get_fill_color = hex_code,
                           radius_min_pixels = 2,
                           opacity = .15,
@@ -388,6 +399,10 @@ server <- function(input, output) {
       add_polygon_layer(data = sf_isochrones_idea_mvp,
                         get_polygon = geometry,
                         opacity = .01,
+                        # get_fill_color = scale_color_category(col = school_short_name,
+                        #                                       legend = FALSE,
+                        #                                       palette = viridis(n_schools)),
+                        #                                       #palette = ideacolors::idea_palettes$qual), # too few
                         get_fill_color = hex_code,
                         name = "Drive Time Radius",
                         group_name = "IDEA",
@@ -401,6 +416,17 @@ server <- function(input, output) {
                               arrange(school_short_name),
                             get_position = geometry,
                             radius_min_pixels = 4,
+                            # get_fill_color = scale_color_category(col = school_short_name,
+                            #                                       legend = FALSE,
+                            #                                       #palette = turbo(n_schools)), # turbo is part of the viridis package
+                            #                                       palette = ideacolors::idea_palettes$qual), # not enough
+                            # get_fill_color = scale_color_identity(col = school_short_name,
+                            #                                       legend = FALSE,
+                            #                                       palette = hex_code),
+                            # get_fill_color = scale_color_identity(col = hex_code,
+                            #                                       legend = FALSE),
+                            # get_fill_color = scale_color_manual(values = hex_code),
+                            # get_fill_color = scale_color_manual(values = c(hex_code)),
                             get_fill_color = hex_code,
                             tooltip = c(school_short_name), # defines which columns are displayed when hovered over
                             pickable = TRUE, # allows for the tooltip names to be shown when hovered over
@@ -409,6 +435,21 @@ server <- function(input, output) {
       )
 
     %>%
+
+      #   # IDEA Schools
+      #   add_scenegraph_layer(data = sf_schools_idea_mvp %>% arrange(school_short_name),
+      #                         get_position = geometry,
+      #                         #radius_min_pixels = 4,
+      #                        #scenegraph = "app/R&A Logo_Transparent.png",
+      #                        scenegraph = 'https://ideapublicschools.org/wp-content/uploads/elementor/thumbs/IDEA-Logo-White-2023-qbah5x84w2wjeczun3y81w9ms7dr11i2ivgv6d730g.png',
+      #                         #get_fill_color = hex_code,
+      #                         tooltip = c(school_short_name), # defines which columns are displayed when hovered over
+      #                         pickable = TRUE, # allows for the tooltip names to be shown when hovered over
+      #                         group_name = "IDEA",
+    #                         name = "Schools"
+    #   )
+    #
+    # %>%
 
     # IDEA School Short Name
     add_text_layer(data = sf_schools_idea_mvp %>%

@@ -1,17 +1,17 @@
 region,school_short_name,hex_code
 Austin,Health Professions,#EE3A80
 Austin,Bluff Springs,#0079C1
-Austin,Del Valle,#F9A054
-Austin,Kyle,#53B4CC
-Austin,Montopolis,#A4C364
-Austin,Parmer Park,#1A4789
-Austin,Pflugerville,#C99DA3
+Austin,Del Valle,#F87060
+Austin,Kyle,#A4508B
+Austin,Montopolis,#004900
+Austin,Parmer Park,#4B3F72
+Austin,Pflugerville,#CC5500
 Austin,Round Rock Tech,#626363
-Austin,Rundberg,#A4508B
+Austin,Rundberg,#587B7F
 Cincinnati,Homer,#EE3A80
-Cincinnati,Pippin,#0079C1
-Cincinnati,Price Hill,#F9A054
-Cincinnati,Valley View,#53B4CC
+Cincinnati,Pippin,#004900
+Cincinnati,Price Hill,#CC5500
+Cincinnati,Valley View,#0079C1
 El Paso,Edgemere,#EE3A80
 El Paso,Horizon Vista,#0079C1
 El Paso,Johannsen,#F9A054
@@ -25,14 +25,14 @@ Greater Houston Area,Hardy,#F9A054
 Greater Houston Area,Lake Houston,#53B4CC
 Greater Houston Area,Spears,#A4C364
 Jacksonville,Bassett,#EE3A80
-Jacksonville,Compass,#0079C1
-Jacksonville,Lane,#F9A054
-Jacksonville,River Bluff,#53B4CC
+Jacksonville,Compass,#800080
+Jacksonville,Lane,#CC5500
+Jacksonville,River Bluff,#0079C1
 Permian Basin,Bush Center,#EE3A80
-Permian Basin,IDEA Fairfield,#0079C1
-Permian Basin,Travis,#F9A054
-Permian Basin,Yukon,#53B4CC
-Permian Basin,Zeneta,#A4C364
+Permian Basin,IDEA Fairfield,#587B7F
+Permian Basin,Travis,#CC5500
+Permian Basin,Yukon,#0079C1
+Permian Basin,Zeneta,#004900
 Rio Grande Valley,Alamo,#EE3A80
 Rio Grande Valley,Brownsville,#0079C1
 Rio Grande Valley,Donna,#F9A054
@@ -78,14 +78,14 @@ Southern Louisiana,Bridge,#EE3A80
 Southern Louisiana,Innovation,#0079C1
 Southern Louisiana,University Prep,#F9A054
 Tampa,Camden Field,#EE3A80
-Tampa,Hope,#0079C1
-Tampa,Ignite,#F9A054
-Tampa,Lakeland,#53B4CC
-Tampa,Reynolds,#A4C364
+Tampa,Hope,#CC5500
+Tampa,Ignite,#587B7F
+Tampa,Lakeland,#800080
+Tampa,Reynolds,#004900
 Tampa,Victory,#1A4789
 Tarrant County,Achieve,#EE3A80
-Tarrant County,Burleson,#0079C1
-Tarrant County,Edgecliff,#F9A054
-Tarrant County,Jim Wright,#53B4CC
-Tarrant County,Rise,#A4C364
+Tarrant County,Burleson,#523249
+Tarrant County,Edgecliff,#CC5500
+Tarrant County,Jim Wright,#800080
+Tarrant County,Rise,#004900
 Tarrant County,Southeast,#1A4789
