@@ -1,13 +1,13 @@
-# 12/5 meeting:
-# - review hex colors
-# - any other modifications for MVP
+# 12/7 meeting:
+# suggestions on how to make the app load faster in Posit Connect
+# need instructions
+# any changes to be made?
 
-# TODO 12/5:
+# DONE for 12/7:
+# add author and people to contact re app
+# add date last updated
 
-# fix Travis coordinates
-#
-
-# TODO
+# TODO if time:
 # make school dots a star or something else
 # try to include school selection in dropdown
 
@@ -16,21 +16,12 @@
 # - maybe move layers and legend off the map to see the map more? (if we can)
 # - Is there a way to select, say a particular age group, within the legend?
 
-# after MVP
-# TODO: Round Rock, Parmer Park, Pflugerville labeled as Tarrant County somewhere? - Burleson was listed as Burleson County instead of Tarrant County, will update after Dec break
-# TODO: mobility file missing county
+# TODO after MVP
+# Round Rock, Parmer Park, Pflugerville labeled as Tarrant County somewhere? - Burleson was listed as Burleson County instead of Tarrant County, will update after Dec break
+# mobility file missing county
+# draw county line borders
 
-# DONE
-# drive times in bottom layer
-# hex color
-# - AUS: switch Kyle and Parmer Park
-# -- switch Round Rock and Bluff Springs
-# -- Round Rock green (#00BC00)
-
-# hex codes, show
-# show_col(idea_palette_ramp()(6))
-
-# load libraries
+# load libraries ---------------------------------------------------------------
 library(tidyverse)
 library(sf)
 # devtools::install_github("qfes/rdeck")
@@ -40,14 +31,18 @@ sf::sf_use_s2(FALSE)
 library(shiny)
 # library(mapboxapi)
 # library(here)
-# install.packages("devtools")
-# devtools::install_github("idea-analytics/ideacolors")
 library(ideacolors)
 library(viridis)
+library(htmltools)
+library(htmlwidgets)
+library(bslib)
+library(shinythemes)
 
 ## debug
 # options(shiny.fullstacktrace = TRUE) # writes the full trace of steps taken by Shiny to the console
 # options(shiny.error = browser) # identifies the code chunk where the error occurs
+
+# get data ---------------------------------------------------------------------
 
 # get regions
 df_counties_tx <- tribble(
@@ -96,13 +91,13 @@ df_counties_all <- bind_rows(
 )
 
 # load mvp data
-load("app/sf_dot_density_mvp.rda")
-load("app/sf_isochrones_idea_mvp.rda")
-load("app/sf_schools_idea_mvp.rda")
-load("app/sf_students_idea_mvp.rda")
+load("sf_dot_density_mvp.rda")
+load("sf_isochrones_idea_mvp.rda")
+load("sf_schools_idea_mvp.rda")
+load("sf_students_idea_mvp.rda")
 
 # read in school hex codes
-hex_codes <- read.csv("app/school_hex_codes.csv")
+hex_codes <- read.csv("school_hex_codes.csv")
 
 sf_dot_density_mvp <- st_as_sf(sf_dot_density_mvp) %>%
   inner_join(df_counties_all %>% select(region, county), by = "county") %>%
@@ -151,15 +146,18 @@ sf_children_in_poverty <- sf_dot_density_mvp %>%
   filter(table_short_name == "Children in poverty",
          geography == "tract")
 
-## mapbox token
+# mapbox token ----------------------------------------------------------------
 
 options(rdeck.mapbox_access_token = Sys.getenv("MAPBOX_API_TOKEN"))
 
-## Define UI for application
+# define UI for application ----------------------------------------------------
 ui <- fluidPage(
 
   # Application title
   titlePanel("Site Location Explorer"),
+
+  ## Shiny theme (https://rstudio.github.io/shinythemes/) ----------------------
+  theme = shinythemes::shinytheme("superhero"),
 
   # set up side panel with multiple options
   sidebarLayout(
@@ -167,8 +165,23 @@ ui <- fluidPage(
       selectInput(inputId = "region_name",
                   label = "Select your region of interest",
                   choices = sort(unique(sf_schools_idea_mvp$region))
-                  )
-      ),
+                  ),
+
+      fluidRow(
+        column(12,
+               tags$p(icon("rotate-right", lib = "font-awesome"),
+                      "Last updated December 2023"),
+               tags$p(icon("pen", lib = "font-awesome"),
+                      "Created by the Research & Analytics team. Please contact ",
+                      tags$a(href = "mailto:aline.orr@ideapublicschools.org?subject=Site Location Explorer", "Aline Orr"),
+                      ", ",
+                      tags$a(href = "mailto:steven.macapagal@ideapublicschools.org?subject=Site Location Explorer", "Steven Macapagal"),
+                      ", or ",
+                      tags$a(href = "mailto:lindsey.smith@ideapublicschools.org?subject=Site Location Explorer", "Lindsey Smith"),
+                      "with any questions about this app."),
+      )
+    )
+    ),
 
     mainPanel(
       rdeckOutput("map")
@@ -176,7 +189,7 @@ ui <- fluidPage(
     )
   )
 
-## Define server logic required to make visuals
+# define server logic required to make visuals ---------------------------------
 
 server <- function(input, output) {
 
@@ -192,7 +205,7 @@ server <- function(input, output) {
 
     %>%
 
-    #   # Mobility
+    #   # Mobility -------------------------------------------------------------
     #   add_scatterplot_layer(data = sf_mobility %>% filter(variable != "Total") %>% arrange(variable),
     #                         get_position = geometry,
     #                         get_fill_color = scale_color_category(col = variable,
@@ -207,7 +220,7 @@ server <- function(input, output) {
     #
     # %>%
 
-      # Students in Poverty
+      # Students in Poverty ----------------------------------------------------
       add_scatterplot_layer(data = sf_students_in_poverty %>%
                               filter(!variable %in% c("Total",
                                                       "Income in the past 12 months below the poverty level",
@@ -243,7 +256,7 @@ server <- function(input, output) {
 
     %>%
 
-      # Household Income
+      # Household Income -------------------------------------------------------
       add_scatterplot_layer(data = sf_household_income %>%
                               filter(variable != "Total") %>%
                               mutate(variable = as.factor(variable)) %>%
@@ -268,7 +281,7 @@ server <- function(input, output) {
 
     %>%
 
-      # Children in Poverty
+      # Children in Poverty ----------------------------------------------------
       add_scatterplot_layer(data = sf_children_in_poverty %>%
                               mutate(variable = as.factor(variable)) %>%
                               mutate(variable_new = case_when(variable == "Under 1.00" ~ "< 1X poverty",
@@ -288,7 +301,7 @@ server <- function(input, output) {
 
     %>%
 
-      # Households with Children Under 18
+      # Households with Children Under 18 --------------------------------------
       add_scatterplot_layer(data = sf_households_under18,
                             get_position = geometry,
                             get_fill_color = ideacolors::idea_colors$melon,
@@ -301,7 +314,7 @@ server <- function(input, output) {
 
     %>%
 
-      # Children by Age (Tract)
+      # Children by Age (Tract) ------------------------------------------------
       add_scatterplot_layer(data = sf_children_by_age_tract %>%
                               mutate(variable = as.factor(variable)) %>%
                               mutate(variable = ordered(variable, levels = c("Under 3 years",
@@ -324,7 +337,7 @@ server <- function(input, output) {
 
     %>%
 
-      # Children by Age (Block)
+      # Children by Age (Block) ------------------------------------------------
       add_scatterplot_layer(data = sf_children_by_age_block %>%
                               mutate(variable = as.factor(variable)) %>%
                               mutate(variable = ordered(variable, levels = c("Under 5 years",
@@ -344,7 +357,7 @@ server <- function(input, output) {
 
     %>%
 
-    # Current IDEA students
+    # Current IDEA students ----------------------------------------------------
     add_scatterplot_layer(data = sf_students_idea_mvp %>%
                             arrange(school_short_name),
                           get_position = geometry,
@@ -358,7 +371,7 @@ server <- function(input, output) {
 
     %>%
 
-      # IDEA Schools
+      # IDEA Schools -----------------------------------------------------------
       add_scatterplot_layer(data = sf_schools_idea_mvp %>%
                               arrange(school_short_name),
                             get_position = geometry,
@@ -372,7 +385,7 @@ server <- function(input, output) {
 
     %>%
 
-    # IDEA School Short Name
+    # IDEA School Short Name ---------------------------------------------------
     add_text_layer(data = sf_schools_idea_mvp %>%
                      arrange(school_short_name),
                    get_position = geometry,
@@ -392,7 +405,7 @@ server <- function(input, output) {
 
     %>%
 
-      # Isochrones (drive distance)
+      # Isochrones (drive distance) --------------------------------------------
       add_polygon_layer(data = sf_isochrones_idea_mvp,
                         get_polygon = geometry,
                         opacity = .01,
@@ -404,5 +417,5 @@ server <- function(input, output) {
   )
   }
 
-## Run the application
+# run the application ---------------------------------------------------------
 shinyApp(ui = ui, server = server)
