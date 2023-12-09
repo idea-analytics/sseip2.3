@@ -1,11 +1,23 @@
-# 12/7 meeting:
-# suggestions on how to make the app load faster in Posit Connect
-# need instructions
-# any changes to be made?
+# MVP TODO:
+# to color change (Brewer palettes):
+# - children in poverty, new colors
+# - household income: ramp scale (warmer to cooler), viridis, will need to generate scale with same color
+# - kid ages ramp scale as well
+# school selection possibly
 
-# DONE for 12/7:
-# add author and people to contact re app
-# add date last updated
+# 12/7 meeting with Chris notes
+# change height or use card where it auto changes...bslib
+# wrap ui function in card..can full page the map
+# make for laptop height
+# deck gl 100% height and width possibly
+# bind cache argument in shiny could help speed it up
+
+# start thinking about features:
+# - select just one school - look at Florida PCP
+# - find intersecting spots (polygons) -> then add neighborhood shape files + show selected neighborhoods (real estate options)
+# - use census layers
+# - find where most overlap of families want to serve
+# - eventually put in address and look at that area
 
 # TODO if time:
 # make school dots a star or something else
@@ -20,6 +32,8 @@
 # Round Rock, Parmer Park, Pflugerville labeled as Tarrant County somewhere? - Burleson was listed as Burleson County instead of Tarrant County, will update after Dec break
 # mobility file missing county
 # draw county line borders
+# select schools
+# select household income
 
 # load libraries ---------------------------------------------------------------
 library(tidyverse)
@@ -37,6 +51,7 @@ library(htmltools)
 library(htmlwidgets)
 library(bslib)
 library(shinythemes)
+library(RColorBrewer)
 
 ## debug
 # options(shiny.fullstacktrace = TRUE) # writes the full trace of steps taken by Shiny to the console
@@ -184,7 +199,7 @@ ui <- fluidPage(
     ),
 
     mainPanel(
-      rdeckOutput("map")
+      rdeckOutput("map", height = "800px")
       )
     )
   )
@@ -200,7 +215,8 @@ server <- function(input, output) {
             filter(region == input$region_name),
           theme = "light",
           editor = FALSE,
-          blending_mode = "subtractive"
+          blending_mode = "subtractive",
+          height = 2000
     )
 
     %>%
@@ -256,7 +272,7 @@ server <- function(input, output) {
 
     %>%
 
-      # Household Income -------------------------------------------------------
+      # Household Income STOPPED -------------------------------------------------------
       add_scatterplot_layer(data = sf_household_income %>%
                               filter(variable != "Total") %>%
                               mutate(variable = as.factor(variable)) %>%
@@ -269,9 +285,16 @@ server <- function(input, output) {
                                                                              "$75,000 to $99,999",
                                                                              "$100,000 or more"))),
                             get_position = geometry,
+                            # get_fill_color = scale_color_category(col = variable,
+                            #                                       legend = TRUE,
+                            #                                       palette = ideacolors::idea_palettes$qual),
+                            # get_fill_color = scale_color_brewer(col = variable,
+                            #                                       legend = TRUE,
+                            #                                       type = "seq",
+                            #                                     palette = Purples),
                             get_fill_color = scale_color_category(col = variable,
                                                                   legend = TRUE,
-                                                                  palette = ideacolors::idea_palettes$qual),
+                                                                  palette = RColorBrewer::palette$Purples),
                             radius_min_pixels = 2,
                             opacity = .15,
                             visible = FALSE,
