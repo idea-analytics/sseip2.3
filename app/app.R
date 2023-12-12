@@ -1,27 +1,9 @@
-# 12/12 meeting
-# check new color palettes (household income, children in poverty, children by age block, children by age tract, students in poverty)
-# remove non-dev posit connect?
-# add anyone to contact list?
-
-# MVP TODO DONE:
-# to color change (Brewer palettes):
-# - children in poverty, new colors
-# - household income: ramp scale (warmer to cooler), viridis, will need to generate scale with same color
-# - kid ages ramp scale as well
-
-# TODO if time:
-# make school dots a star or something else
-# include school selection in dropdown
-
-# TODO: not sure if these are possible
-# - widen the legend (mobility levels do not fit)
-# - maybe move layers and legend off the map to see the map more? (if we can)
-# - Is there a way to select, say a particular age group, within the legend?
-
 # TODO after MVP
 # Round Rock, Parmer Park, Pflugerville labeled as Tarrant County somewhere? - Burleson was listed as Burleson County instead of Tarrant County, will update after Dec break
 # mobility file missing county
 # draw county line borders
+# make school dots a star or something else
+# include school selection in dropdown
 # select schools
 # select household income
 # start thinking about features:
@@ -30,6 +12,11 @@
 # - use census layers
 # - find where most overlap of families want to serve
 # - eventually put in address and look at that area
+
+# TODO: not sure if these are possible
+# - widen the legend (mobility levels do not fit)
+# - maybe move layers and legend off the map to see the map more? (if we can)
+# - Is there a way to select, say a particular age group, within the legend?
 
 # resources
 # color palettes
@@ -164,7 +151,7 @@ sf_children_by_age_tract <- sf_dot_density_mvp %>%
   filter(table_short_name == "Children by age group",
          geography == "tract")
 
-sf_children_by_age_block <- sf_dot_density_mvp %>%
+sf_children_by_age_block_group <- sf_dot_density_mvp %>%
   filter(table_short_name == "Children by age group",
          geography == "block group")
 
@@ -231,11 +218,15 @@ ui <- fluidPage(
                       "Last updated December 2023"),
                tags$p(icon("pen", lib = "font-awesome"),
                       "Created by the Research & Analytics team. Please contact ",
-                      tags$a(href = "mailto:aline.orr@ideapublicschools.org?subject=Site Location Explorer", "Aline Orr"),
+                      tags$a(href = "mailto:christopher.haid@ideapublicschools.org?subject=Site Location Explorer", "Chris Haid"),
+                      ", ",
+                      tags$a(href = "mailto:mishan.jensen@ideapublicschools.org?subject=Site Location Explorer", "Mishan Jensen"),
                       ", ",
                       tags$a(href = "mailto:steven.macapagal@ideapublicschools.org?subject=Site Location Explorer", "Steven Macapagal"),
-                      ", or ",
+                      ", ",
                       tags$a(href = "mailto:lindsey.smith@ideapublicschools.org?subject=Site Location Explorer", "Lindsey Smith"),
+                      ", or ",
+                      tags$a(href = "mailto:aline.orr@ideapublicschools.org?subject=Site Location Explorer", "Aline Orr"),
                       "with any questions about this app."),
       )
     )
@@ -414,8 +405,8 @@ server <- function(input, output) {
 
     %>%
 
-      # Children by Age (Block) ------------------------------------------------
-      add_scatterplot_layer(data = sf_children_by_age_block %>%
+      # Children by Age (Block Group) ------------------------------------------------
+      add_scatterplot_layer(data = sf_children_by_age_block_group %>%
                               mutate(variable = as.factor(variable)) %>%
                               mutate(variable = ordered(variable, levels = c("Under 5 years",
                                                                              "5 to 9 years",
@@ -430,7 +421,7 @@ server <- function(input, output) {
                             opacity = .15,
                             visible = FALSE,
                             group_name = "Population of Children",
-                            name = "Children by Age (Block)"
+                            name = "Children by Age (Block Group)"
       )
 
     %>%
