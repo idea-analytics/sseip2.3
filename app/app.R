@@ -1,27 +1,17 @@
-# MVP TODO:
+# 12/12 meeting
+# check new color palettes (household income, children in poverty, children by age block, children by age tract, students in poverty)
+# remove non-dev posit connect?
+# add anyone to contact list?
+
+# MVP TODO DONE:
 # to color change (Brewer palettes):
 # - children in poverty, new colors
 # - household income: ramp scale (warmer to cooler), viridis, will need to generate scale with same color
 # - kid ages ramp scale as well
-# school selection possibly
-
-# 12/7 meeting with Chris notes
-# change height or use card where it auto changes...bslib
-# wrap ui function in card..can full page the map
-# make for laptop height
-# deck gl 100% height and width possibly
-# bind cache argument in shiny could help speed it up
-
-# start thinking about features:
-# - select just one school - look at Florida PCP
-# - find intersecting spots (polygons) -> then add neighborhood shape files + show selected neighborhoods (real estate options)
-# - use census layers
-# - find where most overlap of families want to serve
-# - eventually put in address and look at that area
 
 # TODO if time:
 # make school dots a star or something else
-# try to include school selection in dropdown
+# include school selection in dropdown
 
 # TODO: not sure if these are possible
 # - widen the legend (mobility levels do not fit)
@@ -34,6 +24,18 @@
 # draw county line borders
 # select schools
 # select household income
+# start thinking about features:
+# - select just one school - look at Florida PCP
+# - find intersecting spots (polygons) -> then add neighborhood shape files + show selected neighborhoods (real estate options)
+# - use census layers
+# - find where most overlap of families want to serve
+# - eventually put in address and look at that area
+
+# resources
+# color palettes
+# - https://www.nceas.ucsb.edu/sites/default/files/2020-04/colorPaletteCheatsheet.pdf
+# - https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html
+# - map palettes, https://colorbrewer2.org
 
 # load libraries ---------------------------------------------------------------
 library(tidyverse)
@@ -51,7 +53,9 @@ library(htmltools)
 library(htmlwidgets)
 library(bslib)
 library(shinythemes)
+# color palettes
 library(RColorBrewer)
+library(colorRamps)
 
 ## debug
 # options(shiny.fullstacktrace = TRUE) # writes the full trace of steps taken by Shiny to the console
@@ -110,9 +114,16 @@ load("sf_dot_density_mvp.rda")
 load("sf_isochrones_idea_mvp.rda")
 load("sf_schools_idea_mvp.rda")
 load("sf_students_idea_mvp.rda")
+# local
+# load("app/sf_dot_density_mvp.rda")
+# load("app/sf_isochrones_idea_mvp.rda")
+# load("app/sf_schools_idea_mvp.rda")
+# load("app/sf_students_idea_mvp.rda")
 
 # read in school hex codes
 hex_codes <- read.csv("school_hex_codes.csv")
+# local
+# hex_codes <- read.csv("app/school_hex_codes.csv")
 
 sf_dot_density_mvp <- st_as_sf(sf_dot_density_mvp) %>%
   inner_join(df_counties_all %>% select(region, county), by = "county") %>%
@@ -160,6 +171,38 @@ sf_children_by_age_block <- sf_dot_density_mvp %>%
 sf_children_in_poverty <- sf_dot_density_mvp %>%
   filter(table_short_name == "Children in poverty",
          geography == "tract")
+
+# manual palettes --------------------------------------------------------------
+household_income_palette <- c("#fde0dd",
+                              "#fcc5c0",
+                              "#fa9fb5",
+                              "#f768a1",
+                              "#dd3497",
+                              "#ae017e",
+                              "#7a0177",
+                              "#49006a") # color brewer 2, RdPu
+students_in_poverty_palette <- c("#c7e9b4",
+                                 "#7fcdbb",
+                                 "#41b6c4",
+                                 "#1d91c0",
+                                 "#225ea8",
+                                 "#253494") # color brewer 2, YlGnBu
+children_by_age_tract_palette <- c("#d0d1e6",
+                                   "#a6bddb",
+                                   "#74a9cf",
+                                   "#3690c0",
+                                   "#0570b0",
+                                   "#045a8d",
+                                   "#023858") # color brewer 2, PuBu
+children_by_age_block_palette <- c("#a1d99b",
+                                   "#41ab5d",
+                                   "#238b45",
+                                   "#006d2c") # color brewer 2, Greens
+# children_in_poverty_palette <- c("#89ABE3",
+#                                  "#EA738D") # pink, blue - too similar to other palettes
+children_in_poverty_palette <- c("#969696",
+                                 "#525252") # color brewer 2, Greys
+
 
 # mapbox token ----------------------------------------------------------------
 
@@ -261,7 +304,8 @@ server <- function(input, output) {
                             get_position = geometry,
                             get_fill_color = scale_color_category(col = variable_new,
                                                                   legend = TRUE,
-                                                                  palette = ideacolors::idea_palettes$qual),
+                                                                  # palette = ideacolors::idea_palettes$qual
+                                                                  palette = students_in_poverty_palette),
                             #get_fill_color = "#9A95A2",
                             radius_min_pixels = 2,
                             opacity = .15,
@@ -272,7 +316,7 @@ server <- function(input, output) {
 
     %>%
 
-      # Household Income STOPPED -------------------------------------------------------
+      # Household Income -------------------------------------------------------
       add_scatterplot_layer(data = sf_household_income %>%
                               filter(variable != "Total") %>%
                               mutate(variable = as.factor(variable)) %>%
@@ -285,16 +329,25 @@ server <- function(input, output) {
                                                                              "$75,000 to $99,999",
                                                                              "$100,000 or more"))),
                             get_position = geometry,
+                            # want a ramp palette instead of this
                             # get_fill_color = scale_color_category(col = variable,
                             #                                       legend = TRUE,
                             #                                       palette = ideacolors::idea_palettes$qual),
-                            # get_fill_color = scale_color_brewer(col = variable,
+                            # get_fill_color = scale_color_brewer(palette = "Purples"),
+                            # works but one color too light
+                            # get_fill_color = scale_color_category(col = variable,
                             #                                       legend = TRUE,
-                            #                                       type = "seq",
-                            #                                     palette = Purples),
+                            #                                       palette = RColorBrewer::brewer.pal(n = 8, name = "Purples")),
+                            # reversed order of palette but one color still too light
+                            # get_fill_color = scale_color_category(col = variable,
+                            #                                       legend = TRUE,
+                            #                                       palette = colorRampPalette(RColorBrewer::brewer.pal(n = 8, name = "Purples")[8:1])),
+                            # get_fill_color = scale_color_category(col = variable,
+                            #                                       legend = TRUE,
+                            #                                       palette = colorRamps::blue2green(8)),
                             get_fill_color = scale_color_category(col = variable,
                                                                   legend = TRUE,
-                                                                  palette = RColorBrewer::palette$Purples),
+                                                                  palette = household_income_palette),
                             radius_min_pixels = 2,
                             opacity = .15,
                             visible = FALSE,
@@ -314,7 +367,7 @@ server <- function(input, output) {
                             get_position = geometry,
                             get_fill_color = scale_color_category(col = variable_new,
                                                                   legend = TRUE,
-                                                                  palette = ideacolors::idea_palettes$greenorange),
+                                                                  palette = children_in_poverty_palette),
                             radius_min_pixels = 2,
                             opacity = .15,
                             visible = FALSE,
@@ -350,7 +403,8 @@ server <- function(input, output) {
                             get_position = geometry,
                             get_fill_color = scale_color_category(col = variable,
                                                                   legend = TRUE,
-                                                                  palette = ideacolors::idea_palettes$div),
+                                                                  # palette = ideacolors::idea_palettes$div
+                                                                  palette = children_by_age_tract_palette),
                             radius_min_pixels = 2,
                             opacity = .15,
                             visible = FALSE,
@@ -370,7 +424,8 @@ server <- function(input, output) {
                             get_position = geometry,
                             get_fill_color = scale_color_category(col = variable,
                                                                   legend = TRUE,
-                                                                  palette = ideacolors::idea_palettes$qual),
+                                                                  # palette = ideacolors::idea_palettes$qual
+                                                                  palette = children_by_age_block_palette),
                             radius_min_pixels = 2,
                             opacity = .15,
                             visible = FALSE,
