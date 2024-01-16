@@ -76,8 +76,9 @@ df_counties_tx <- tribble(
 
   "TX", "Tarrant County", "Tarrant County",
   "TX", "Tarrant County", "Parker County",
-  "TX", "Tarrant County", "Burleson County", # This is incorrect...Burleson County is the College Station area.
-)
+  "TX", "Tarrant County", "Johnson County",
+  "TX", "Tarrant County", "Dallas County",
+  )
 
 df_counties_ips <- tribble(
   ~ state, ~ region, ~ county,
@@ -101,11 +102,15 @@ load("sf_dot_density_mvp.rda")
 load("sf_isochrones_idea_mvp.rda")
 load("sf_schools_idea_mvp.rda")
 load("sf_students_idea_mvp.rda")
+load("sf_school_districts.rda")
+load("sf_counties.rda")
 # local
 # load("app/sf_dot_density_mvp.rda")
 # load("app/sf_isochrones_idea_mvp.rda")
 # load("app/sf_schools_idea_mvp.rda")
 # load("app/sf_students_idea_mvp.rda")
+# load("app/sf_school_districts.rda")
+# load("app/sf_counties.rda")
 
 # read in school hex codes
 hex_codes <- read.csv("school_hex_codes.csv")
@@ -128,6 +133,10 @@ sf_schools_idea_mvp <- st_as_sf(sf_schools_idea_mvp) %>%
 sf_students_idea_mvp <- st_as_sf(sf_students_idea_mvp) %>%
   rename(region = region_description) %>%
   left_join(hex_codes %>% select(school_short_name, hex_code), by = "school_short_name")
+
+sf_school_districts <- st_as_sf(sf_school_districts)
+
+sf_counties <- st_as_sf(sf_counties)
 
 # create separate data frames for block groups and tracts
 
@@ -483,6 +492,52 @@ server <- function(input, output) {
                         group_name = "IDEA",
                         visible = FALSE,
       )
+
+    %>%
+
+      # Counties ---------------------------------------------------------------
+      add_polygon_layer(data = sf_counties,
+                      get_polygon = geometry,
+                      opacity = 1,
+                      filled = FALSE,
+                      get_line_color = "#FF69B4",
+                      get_line_width = 200,
+                      name = "County Lines",
+                      group_name = "Base",
+                      visible = TRUE,
+    )
+
+    %>%
+
+      # School Districts -------------------------------------------------------
+      add_polygon_layer(data = sf_school_districts,
+                      get_polygon = geometry,
+                      opacity = 1,
+                      filled = FALSE,
+                      get_line_color = "#0018F9",
+                      get_line_width = 100,
+                      name = "School Districts",
+                      group_name = "Base",
+                      visible = TRUE,
+    )
+#
+#     %>%
+#
+#       # School District Name ---------------------------------------------------
+#       add_text_layer(data = sf_school_districts,
+#                    get_position = geometry,
+#                    size_min_pixels = 13,
+#                    size_max_pixels = 14,
+#                    get_text_anchor = "end",
+#                    get_text = NAME,
+#                    # get_color = scale_color_category(col = school_short_name,
+#                    #                                  legend = FALSE,
+#                    #                                  #palette = turbo(n_schools)), # turbo is part of the viridis package
+#                    #                                  palette = ideacolors::idea_palettes$qual), # not enough
+#                    get_color = "#0018F9",
+#                    group_name = "Base",
+#                    name = "School Districts"
+#     )
   )
   }
 
