@@ -1,7 +1,5 @@
 # TODO after MVP
-# Round Rock, Parmer Park, Pflugerville labeled as Tarrant County somewhere? - Burleson was listed as Burleson County instead of Tarrant County, will update after Dec break
 # mobility file missing county
-# draw county line borders
 # make school dots a star or something else
 # include school selection in dropdown
 # select schools
@@ -213,13 +211,25 @@ ui <- fluidPage(
   ## Shiny theme (https://rstudio.github.io/shinythemes/) ----------------------
   theme = shinythemes::shinytheme("superhero"),
 
-  # set up side panel with multiple options
+  ## set up side panel with multiple options ----
   sidebarLayout(
     sidebarPanel(
       selectInput(inputId = "region_name",
                   label = "Select your region of interest",
                   choices = sort(unique(sf_schools_idea_mvp$region))
                   ),
+
+      ### TODO: not doing anything ----
+      checkboxInput(inputId = "show_names",
+                    label = "Show school names?",
+                    value = FALSE),
+
+      selectInput(inputId = "schools",
+                  label = "IDEA Schools",
+                  choices = sf_schools_idea_mvp$school_short_name,
+                  # selectize = FALSE,
+                  multiple = TRUE,
+                  selected = sf_schools_idea_mvp$school_short_name),
 
       fluidRow(
         column(12,
@@ -256,6 +266,8 @@ server <- function(input, output) {
     rdeck(map_style = mapbox_gallery_frank(),
           initial_bounds = sf_household_income %>%
             filter(region == input$region_name),
+                   # TODO: likely an issue here not working ----
+                   # school == input$schools),
           theme = "light",
           editor = FALSE,
           blending_mode = "subtractive",
@@ -503,8 +515,11 @@ server <- function(input, output) {
                       get_line_color = "#FF69B4",
                       get_line_width = 200,
                       name = "County Lines",
-                      group_name = "Base",
-                      visible = TRUE,
+                      group_name = "County & District Boundaries",
+                      visible = FALSE,
+                      ## TODO: make tooltip visible within entire county ----
+                      tooltip = c(NAMELSAD), # defines which columns are displayed when hovered over
+                      pickable = TRUE, # allows for the tooltip names to be shown when hovered
     )
 
     %>%
@@ -517,27 +532,12 @@ server <- function(input, output) {
                       get_line_color = "#0018F9",
                       get_line_width = 100,
                       name = "School Districts",
-                      group_name = "Base",
-                      visible = TRUE,
+                      group_name = "County & District Boundaries",
+                      visible = FALSE,
+                      ## TODO: make tooltip visible within entire district ----
+                      tooltip = c(NAME), # defines which columns are displayed when hovered over
+                      pickable = TRUE, # allows for the tooltip names to be shown when hovered
     )
-#
-#     %>%
-#
-#       # School District Name ---------------------------------------------------
-#       add_text_layer(data = sf_school_districts,
-#                    get_position = geometry,
-#                    size_min_pixels = 13,
-#                    size_max_pixels = 14,
-#                    get_text_anchor = "end",
-#                    get_text = NAME,
-#                    # get_color = scale_color_category(col = school_short_name,
-#                    #                                  legend = FALSE,
-#                    #                                  #palette = turbo(n_schools)), # turbo is part of the viridis package
-#                    #                                  palette = ideacolors::idea_palettes$qual), # not enough
-#                    get_color = "#0018F9",
-#                    group_name = "Base",
-#                    name = "School Districts"
-#     )
   )
   }
 
