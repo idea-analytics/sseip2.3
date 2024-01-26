@@ -502,7 +502,7 @@ server <- function(input, output) {
                         get_fill_color = hex_code,
                         name = "Drive Time Radius",
                         group_name = "IDEA",
-                        visible = FALSE,
+                        visible = FALSE
       )
 
     %>%
@@ -511,7 +511,8 @@ server <- function(input, output) {
       add_polygon_layer(data = sf_counties,
                       get_polygon = geometry,
                       opacity = 1,
-                      filled = FALSE,
+                      # filled = FALSE,
+                      get_fill_color = "#00000000",
                       get_line_color = "#FF69B4",
                       get_line_width = 200,
                       name = "County Lines",
@@ -519,7 +520,7 @@ server <- function(input, output) {
                       visible = FALSE,
                       ## TODO: make tooltip visible within entire county ----
                       tooltip = c(NAMELSAD), # defines which columns are displayed when hovered over
-                      pickable = TRUE, # allows for the tooltip names to be shown when hovered
+                      pickable = TRUE # allows for the tooltip names to be shown when hovered
     )
 
     %>%
@@ -528,7 +529,8 @@ server <- function(input, output) {
       add_polygon_layer(data = sf_school_districts,
                       get_polygon = geometry,
                       opacity = 1,
-                      filled = FALSE,
+                      # filled = FALSE,
+                      get_fill_color = "#00000000",
                       get_line_color = "#0018F9",
                       get_line_width = 100,
                       name = "School Districts",
@@ -536,7 +538,7 @@ server <- function(input, output) {
                       visible = FALSE,
                       ## TODO: make tooltip visible within entire district ----
                       tooltip = c(NAME), # defines which columns are displayed when hovered over
-                      pickable = TRUE, # allows for the tooltip names to be shown when hovered
+                      pickable = TRUE # allows for the tooltip names to be shown when hovered
     )
   )
   }
