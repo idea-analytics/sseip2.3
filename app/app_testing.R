@@ -1,4 +1,4 @@
-# app_working.R is a script for testing new app features
+# Purpose: app_testing.R is a script for testing new app features
 
 # TODO after MVP
 # mobility file missing county
