@@ -1,0 +1,13 @@
+name: site-suitability-v2
+title: site-suitability-v2
+username: christopher.haid
+account: christopher.haid
+server: analytics.ideapublicschools.org
+hostUrl: https://analytics.ideapublicschools.org/__api__
+appId: 246
+bundleId: 9431
+url: https://analytics.ideapublicschools.org/content/2ff660c0-1b2f-4d5d-ae0a-c3a850b8277a/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app_OLD.R
