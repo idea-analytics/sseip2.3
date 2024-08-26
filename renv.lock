@@ -1270,6 +1270,28 @@
       ],
       "Hash": "ede692ba0c8c4d18053e168f4de7489f"
     },
+    "mapgl": {
+      "Package": "mapgl",
+      "Version": "0.1.1",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "walkerke",
+      "RemoteRepo": "mapgl",
+      "RemoteRef": "main",
+      "RemoteSha": "2a5cd79e0579160691fe63337fe49e8e4b262b0c",
+      "Requirements": [
+        "base64enc",
+        "geojsonsf",
+        "grDevices",
+        "htmltools",
+        "htmlwidgets",
+        "rlang",
+        "sf",
+        "terra"
+      ],
+      "Hash": "b5be3c6875a36b8e0b42f1455f939a4a"
+    },
     "memoise": {
       "Package": "memoise",
       "Version": "2.0.1",
