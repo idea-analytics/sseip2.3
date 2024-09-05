@@ -84,11 +84,33 @@ load("sf_dot_density_mvp.rda")
 load("sf_isochrones_idea_mvp.rda")
 load("sf_schools_idea_mvp.rda")
 load("sf_students_idea_mvp.rda")
+
 # local
 # load("app/sf_dot_density_mvp.rda")
 # load("app/sf_isochrones_idea_mvp.rda")
 # load("app/sf_schools_idea_mvp.rda")
 # load("app/sf_students_idea_mvp.rda")
+
+
+sf_site_suitability_mvp<-sfarrow::st_read_feather("sf_site_suitability.feather")
+# create color ramp fo suitability index
+index_vals_cols <- sf_site_suitability_mvp %>%
+  ungroup() %>%
+  arrange(index_total) %>%
+  as_tibble() %>%
+  select(index_total)
+
+
+
+index_vals_cols <- index_vals_cols %>%
+  mutate(
+    hex_code = idea_palette_ramp()(nrow(index_vals_cols))
+  )
+
+
+sf_site_suitability_mvp <- sf_site_suitability_mvp %>%
+  left_join(index_vals_cols, by = "index_total")
+
 
 # read in school hex codes
 hex_codes <- read.csv("school_hex_codes.csv")
@@ -288,7 +310,7 @@ server <- function(input, output) {
                                                                   legend = TRUE,
                                                                   palette = household_income_palette),
                             radius_min_pixels = 2,
-                            opacity = .15,
+                            opacity = .8,
                             visible = FALSE,
                             group_name = "Income",
                             name = "Household Income"
@@ -423,6 +445,19 @@ server <- function(input, output) {
                         name = "Drive Time Radius",
                         group_name = "IDEA",
                         visible = FALSE,
+    )
+
+    %>%
+
+      # Site Suitability (Hexs) --------------------------------------------
+    add_polygon_layer(data = sf_site_suitability_mvp,
+                      get_polygon = geometry,
+                      opacity = .1,
+                      get_fill_color = hex_code,
+                      get_line_color = idea_colors$coolgray,
+                      name = "Suitability Index",
+                      group_name = "IDEA",
+                      visible = TRUE,
     )
   )
 }

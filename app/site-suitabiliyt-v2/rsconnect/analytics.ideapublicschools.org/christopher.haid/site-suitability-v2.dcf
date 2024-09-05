@@ -1,0 +1,13 @@
+name: site-suitability-v2
+title: site-suitability-v2
+username: christopher.haid
+account: christopher.haid
+server: analytics.ideapublicschools.org
+hostUrl: https://analytics.ideapublicschools.org/__api__
+appId: 246
+bundleId: 9585
+url: https://analytics.ideapublicschools.org/site-suitability-v2/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app_filter_tests.R|app_OLD.R|sf_dot_density_mvp.feather|sf_household_income.mbtiles|sf_students_idea_mvp.feather|tippecanoe_mts.R
