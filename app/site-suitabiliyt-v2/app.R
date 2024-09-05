@@ -37,7 +37,7 @@ regions <- sf_site_suitability_mvp %>%
 
 
 
-sf_dot_density_mvp <- st_read_feather("sf_dot_density_mvp.feather")
+#sf_dot_density_mvp <- st_read_feather("sf_dot_density_mvp.feather")
 
 hex_codes <- read.csv("school_hex_codes.csv")
 sf_isochrones_idea_mvp <- st_read_feather("sf_isochrones_idea_mvp.feather") %>%
@@ -46,54 +46,54 @@ sf_isochrones_idea_mvp <- st_read_feather("sf_isochrones_idea_mvp.feather") %>%
 sf_idea_schools_mvp <- st_read_feather("sf_schools_idea_mvp.feather") %>%
   inner_join(hex_codes, by = c("school_short_name" = "school_short_name"))
 
-sf_idea_students_mvp <- st_read_feather("sf_students_idea_mvp.feather") %>%
-  inner_join(hex_codes, by = c("school_short_name" = "school_short_name"))
+#sf_idea_students_mvp <- st_read_feather("sf_students_idea_mvp.feather") %>%
+#  inner_join(hex_codes, by = c("school_short_name" = "school_short_name"))
 
 
 
-sf_household_income <- sf_dot_density_mvp %>%
-  filter(table_short_name == "Household income",
-         geography == "block group")
-
-sf_students_in_poverty <- sf_dot_density_mvp %>%
-  filter(table_short_name == "Students in poverty",
-         geography == "block group",
-         !variable %in% c("Total",
-                          "Income in the past 12 months below the poverty level",
-                          "Enrolled in school",
-                          "Enrolled in college undergraduate years",
-                          "Enrolled in graduate or professional school",
-                          "Not enrolled in school")) %>%
-  mutate(variable = as.factor(variable)) %>%
-  # rename variable levels so they fit in legend
-  mutate(variable_new = case_when(variable == "Enrolled in nursery school, preschool" ~ "Enrolled in nursery/PK",
-                                  variable == "Enrolled in kindergarten" ~ "Enrolled in kindergarten",
-                                  variable == "Enrolled in grade 1 to grade 4" ~ "Enrolled in grades 1-4",
-                                  variable == "Enrolled in grade 5 to grade 8" ~ "Enrolled in grades 5-8",
-                                  variable == "Enrolled in grade 9 to grade 12" ~ "Enrolled in grades 9-12",
-                                  variable == "Not enrolled in school" ~ "Not enrolled in school")) %>%
-  mutate(variable_new = ordered(variable_new, levels = c("Enrolled in nursery/PK",
-                                                         "Enrolled in kindergarten",
-                                                         "Enrolled in grades 1-4",
-                                                         "Enrolled in grades 5-8",
-                                                         "Enrolled in grades 9-12",
-                                                         "Not enrolled in school")))
-
-sf_households_under18 <- sf_dot_density_mvp %>%
-  filter(table_short_name == "Households with children under 18",
-         geography == "block group")
+# sf_household_income <- sf_dot_density_mvp %>%
+#   filter(table_short_name == "Household income",
+#          geography == "block group")
+#
+# sf_students_in_poverty <- sf_dot_density_mvp %>%
+#   filter(table_short_name == "Students in poverty",
+#          geography == "block group",
+#          !variable %in% c("Total",
+#                           "Income in the past 12 months below the poverty level",
+#                           "Enrolled in school",
+#                           "Enrolled in college undergraduate years",
+#                           "Enrolled in graduate or professional school",
+#                           "Not enrolled in school")) %>%
+#   mutate(variable = as.factor(variable)) %>%
+#   # rename variable levels so they fit in legend
+#   mutate(variable_new = case_when(variable == "Enrolled in nursery school, preschool" ~ "Enrolled in nursery/PK",
+#                                   variable == "Enrolled in kindergarten" ~ "Enrolled in kindergarten",
+#                                   variable == "Enrolled in grade 1 to grade 4" ~ "Enrolled in grades 1-4",
+#                                   variable == "Enrolled in grade 5 to grade 8" ~ "Enrolled in grades 5-8",
+#                                   variable == "Enrolled in grade 9 to grade 12" ~ "Enrolled in grades 9-12",
+#                                   variable == "Not enrolled in school" ~ "Not enrolled in school")) %>%
+#   mutate(variable_new = ordered(variable_new, levels = c("Enrolled in nursery/PK",
+#                                                          "Enrolled in kindergarten",
+#                                                          "Enrolled in grades 1-4",
+#                                                          "Enrolled in grades 5-8",
+#                                                          "Enrolled in grades 9-12",
+#                                                          "Not enrolled in school")))
+#
+# sf_households_under18 <- sf_dot_density_mvp %>%
+#   filter(table_short_name == "Households with children under 18",
+#          geography == "block group")
 
 # sf_children_by_age_tract <- sf_dot_density_mvp %>%
 #   filter(table_short_name == "Children by age group",
 #          geography == "tract")
 
-sf_children_by_age_block_group <- sf_dot_density_mvp %>%
-  filter(table_short_name == "Children by age group",
-         geography == "block group")
+# sf_children_by_age_block_group <- sf_dot_density_mvp %>%
+#   filter(table_short_name == "Children by age group",
+#          geography == "block group")
 
-sf_children_in_poverty <- sf_dot_density_mvp %>%
-  filter(table_short_name == "Children in poverty",
-         geography == "tract")
+# sf_children_in_poverty <- sf_dot_density_mvp %>%
+#   filter(table_short_name == "Children in poverty",
+#          geography == "tract")
 
 # Palettes -------------------------------------------------------------------
 children_by_age_block_palette <- c("#a1d99b",
@@ -128,7 +128,7 @@ ui <- page_sidebar(
     sidebar = sidebar(
       title = span("Layer controls",tooltip(bs_icon("info-circle"),
       "Add layers to map; filters for displayef layers will appear below",placement="bottom")),
-
+      mapboxapi::mapboxGeocoderInput("search_box"),
       ### Region selector ------------------------------------------------------
       selectizeInput(
         "region_selector",
@@ -277,10 +277,12 @@ ui <- page_sidebar(
 
     ### Map -------------------------------------------------------------------
     card(
-      title = "Map",
+      title = "Map",full_screen = TRUE,
       mapboxglOutput("map", height = "400px")
-      )
 
+      ),
+
+    add_busy_bar(color = idea_colors_2024$lime, height = "8px")
 )
 
 # Server ----------------------
@@ -292,12 +294,12 @@ server <- function(input, output) {
   output$map <- renderMapboxgl({
     #req(input$region_selector)
 
-      show_modal_progress_line(value = 0.05, "Loading map data and finding Austin...")
+ #     show_modal_progress_line(value = 0.05, "Loading map data and finding Austin...")
       initial_map <- mapboxgl(center = c(-97.661324953909, 30.3381543635444),
                zoom = 8.28974152189369,
                style = rdeck::mapbox_gallery_frank())
 
-      update_modal_progress(value = .1, "Loading site suitability data...",)
+#      update_modal_progress(value = .1, "Loading site suitability data...",)
       initial_map <- initial_map %>%
       add_fill_layer(id = "suitability",
                      source = sf_site_suitability_mvp,
@@ -326,7 +328,7 @@ server <- function(input, output) {
                     idea_colors$magenta)
       )
 
-      update_modal_progress(value = .2, "Loading drive times data...")
+#      update_modal_progress(value = .2, "Loading drive times data...")
       initial_map <- initial_map %>%
       add_fill_layer(
         id = "drive_times",
@@ -345,96 +347,94 @@ server <- function(input, output) {
         circle_color = get_column("hex_code"),
         circle_opacity = 1, tooltip = "school_short_name")
 
-      update_modal_progress(value = .4, "Loading students data...")
+
+
+      #update_modal_progress(value = .7, "Getting layers from mapbox...")
+
       initial_map <- initial_map %>%
-      add_circle_layer(
-        id = "students-layer",
-        source = sf_idea_students_mvp,
-        circle_radius = 2.5,
-        circle_color = get_column("hex_code"),
-        circle_opacity = .65,
-        visibility = "none"
-      )
+        add_vector_source(url = "mapbox://christopher-haid.test_hhi_tileset",
+                          id = "mapbox_layer") %>%
+        add_circle_layer(
+          id = "household_income",
+          source = "mapbox_layer",
+          source_layer = "hhi",
+          circle_radius = 2,
+          circle_color = match_expr(
+            column = "variable",
+            values = c("Less than $20,000",
+                       "$20,000 to $29,999",
+                       "$30,000 to $39,999",
+                       "$40,000 to $49,999",
+                       "$50,000 to $59,999",
+                       "$60,000 to $74,999",
+                       "$75,000 to $99,999",
+                       "$100,000 or more"),
+            stops = idea_palette_ramp("blueorange")(8)),
+          circle_opacity = .5,
+          visibility = "none"
+        ) %>%
+        add_circle_layer(
+          id = "students_in_poverty",
+          source = "mapbox_layer",
+          source_layer = "students_in_poverty",
+          circle_radius = 2,
+          circle_color = match_expr(
+            column = "variable",
+            values = c("nrolled in nursery school, preschool",
+                       "Enrolled in kindergarten",
+                       "Enrolled in grade 1 to grade 4",
+                       "Enrolled in grade 5 to grade 8",
+                       "Enrolled in grade 9 to grade 12"),
+            stops = students_in_poverty_palette[1:5]),
+          circle_opacity = .333,
+          visibility = "none"
+        ) %>%
+        add_circle_layer(
+          id = "households_children_under18",
+          source = "mapbox_layer",
+          source_layer = "under18",
+          circle_radius = 2,
+          circle_color = "#626363",
+          circle_opacity = .333,
+          visibility = "none"
+        ) %>%
+        add_circle_layer(
+          id = "children_in_poverty",
+          source = "mapbox_layer",
+          source_layer = "children_in_poverty",
+          circle_radius = 2,
+          circle_color = match_expr(
+            column = "variable",
+            values = c("Under 1.00", "1.00 to 1.99"),
+            stops = children_in_poverty_palette),
+          circle_opacity = .5,
+          visibility = "none"
+        ) %>%
 
-      update_modal_progress(value = .5, "Loading census data: children by age...")
-      initial_map <- initial_map %>%
-      add_circle_layer(
-        id = "children_by_age",
-        source = sf_children_by_age_block_group,
-        circle_radius = 2,
-        circle_color = match_expr(
-          column = "variable",
-          values = c("Under 5 years", "5 to 9 years", "10 to 14 years", "15 to 17 years"),
-          stops = children_by_age_block_palette),
-        circle_opacity = .45,
-        visibility = "none"
-      )
+        add_circle_layer(
+          id = "children_by_age",
+          source = "mapbox_layer",
+          source_layer = "children_by_age",
+          circle_radius = 2,
+          circle_color = match_expr(
+            column = "variable",
+            values = c("Under 5 years", "5 to 9 years", "10 to 14 years", "15 to 17 years"),
+            stops = children_by_age_block_palette),
+          circle_opacity = .45,
+          visibility = "none"
+        ) %>%
 
-      update_modal_progress(value = .6, "Loading census data: children in poverty...")
-      initial_map <- initial_map %>%
-      add_circle_layer(
-        id = "children_in_poverty",
-        source = sf_children_in_poverty,
-        circle_radius = 2,
-        circle_color = match_expr(
-          column = "variable",
-          values = c("Under 1.00", "1.00 to 1.99"),
-          stops = children_in_poverty_palette),
-        circle_opacity = .5,
-        visibility = "none"
-      )
+        add_circle_layer(
+          id = "students-layer",
+          source = "mapbox_layer",
+          source_layer = "idea_students",
+          circle_radius = 2.5,
+          circle_color = get_column("hex_code"),
+          circle_opacity = .65,
+          visibility = "none"
+        )
 
-      update_modal_progress(value = .7, "Loading census data: households with children under 18...")
-      initial_map <- initial_map %>%
-      add_circle_layer(
-        id = "households_children_under18",
-        source = sf_households_under18,
-        circle_radius = 2,
-        circle_color = "#626363",
-        circle_opacity = .333,
-        visibility = "none"
-      )
-
-      update_modal_progress(value = .8, "Loading census data: students in poverty...")
-      initial_map <- initial_map  %>%
-      add_circle_layer(
-        id = "students_in_poverty",
-        source = sf_students_in_poverty,
-        circle_radius = 2,
-        circle_color = match_expr(
-          column = "variable",
-          values = c("nrolled in nursery school, preschool",
-                     "Enrolled in kindergarten",
-                     "Enrolled in grade 1 to grade 4",
-                     "Enrolled in grade 5 to grade 8",
-                     "Enrolled in grade 9 to grade 12"),
-          stops = students_in_poverty_palette[1:5]),
-        circle_opacity = .333,
-        visibility = "none"
-      )
-
-      update_modal_progress(value = .9, "Loading census data: household income...")
-      initial_map <- initial_map %>%
-      add_circle_layer(
-        id = "household_income",
-        source = sf_household_income %>% filter(variable != "Total"),
-        circle_radius = 2,
-        circle_color = match_expr(
-          column = "variable",
-          values = c("Less than $20,000",
-                     "$20,000 to $29,999",
-                     "$30,000 to $39,999",
-                     "$40,000 to $49,999",
-                     "$50,000 to $59,999",
-                     "$60,000 to $74,999",
-                     "$75,000 to $99,999",
-                     "$100,000 or more"),
-          stops = idea_palette_ramp("blueorange")(8)),
-        circle_opacity = .333,
-        visibility = "none"
-      )
-
-      remove_modal_progress()
+      #remove_modal_progress()
 
       initial_map
 

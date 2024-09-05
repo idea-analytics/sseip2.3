@@ -5,9 +5,9 @@ account: christopher.haid
 server: analytics.ideapublicschools.org
 hostUrl: https://analytics.ideapublicschools.org/__api__
 appId: 246
-bundleId: 9450
-url: https://analytics.ideapublicschools.org/content/2ff660c0-1b2f-4d5d-ae0a-c3a850b8277a/
+bundleId: 9585
+url: https://analytics.ideapublicschools.org/site-suitability-v2/
 version: 1
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: app_OLD.R
+ignoredFiles: app_filter_tests.R|app_OLD.R|sf_dot_density_mvp.feather|sf_household_income.mbtiles|sf_students_idea_mvp.feather|tippecanoe_mts.R
