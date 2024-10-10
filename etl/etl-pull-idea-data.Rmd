@@ -7,7 +7,7 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2023-11-11
+- Last modified: 2024-10-10
 - Last deployed (development): 2023-11-11
 - Last deployed (production):
 - Inputs:
@@ -32,7 +32,7 @@ library(sf)
 library(mapboxapi)
 library(tidygeocoder)
 library(pins)
-library(qs)
+library(sfarrow)
 ```
 
 ### Define tables, parameters, functions
@@ -45,6 +45,8 @@ df_counties_tx <- tibble::tribble(
   "TX", "Austin", "Hays County",
   "TX", "Austin", "Bastrop County",
   "TX", "Austin", "Williamson County",
+  
+  # "TX", "Coastal Bend", "Nueces County",
 
   "TX", "El Paso", "El Paso County",
   
@@ -62,8 +64,7 @@ df_counties_tx <- tibble::tribble(
   "TX", "San Antonio", "Comal County",
   
   "TX", "Tarrant County", "Tarrant County",
-  "TX", "Tarrant County", "Parker County",
-  "TX", "Tarrant County", "Burleson County",
+  "TX", "Tarrant County", "Dallas County"
 )
 
 df_counties_ips <- tibble::tribble(
@@ -73,9 +74,11 @@ df_counties_ips <- tibble::tribble(
   
   "FL", "Jacksonville", "Duval County",
   "FL", "Tampa", "Hillsborough County",
-  "FL", "Tampa", "Polk County" ,
+  "FL", "Tampa", "Polk County",
+  # "FL", "Orlando", "Orange County",
   
   "LA", "Southern Louisiana", "East Baton Rouge Parish",
+  "LA", "Southern Louisiana", "Orleans Parish"
 )
 
 df_counties_all <- dplyr::bind_rows(
@@ -83,32 +86,38 @@ df_counties_all <- dplyr::bind_rows(
   df_counties_ips
 )
 
-df_geolocated_schools <- readr::read_csv(here::here("etl","GIS sites data summary.csv"))%>%
-  janitor::clean_names()%>%
-  dplyr::select(region:longitude)%>%
-  dplyr::distinct() %>%
-  dplyr::select(region,
-         school_short_name,
-         school_street = addresses, 
-         school_city = city, 
-         school_state = state, 
-         school_zip_code = zip,
-         county,
-         lat = latitude,
-         long = longitude)
+df_geolocated_schools <- get_table(.table_name = "SchoolsGeocoded",
+                                   .server_name = "RGVPDRA-DASQL",
+                                   .database_name = "Dashboard",
+                                   .schema = "dbo") %>%
+  collect()
 
-mvp_regions <- c("Austin", "Permian Basin", "Tarrant County", "Cincinnati", "Jacksonville", "Tampa")
+# df_geolocated_schools <- readr::read_csv(here::here("etl","GIS sites data summary.csv"))%>%
+#   janitor::clean_names()%>%
+#   dplyr::select(region:longitude)%>%
+#   dplyr::distinct() %>%
+#   dplyr::select(region,
+#          school_short_name,
+#          school_street = addresses, 
+#          school_city = city, 
+#          school_state = state, 
+#          school_zip_code = zip,
+#          county,
+#          lat = latitude,
+#          long = longitude)
 
-mvp_counties <- df_counties_all %>%
-  dplyr::filter(region %in% mvp_regions) %>%
-  dplyr::pull(county)
+# mvp_regions <- c("Austin", "Permian Basin", "Tarrant County", "Cincinnati", "Jacksonville", "Tampa")
+# 
+# mvp_counties <- df_counties_all %>%
+#   dplyr::filter(region %in% mvp_regions) %>%
+#   dplyr::pull(county)
 ```
 
 
 ```{r define_parameters}
 # IDEA-related parameters ----
-CURRENT_ACADEMIC_YEAR <- "2023-2024"
-CURRENT_SCHOOL_TERM_ID <- 3300
+CURRENT_ACADEMIC_YEAR <- "2024-2025"
+CURRENT_SCHOOL_TERM_ID <- 3400
 
 # other parameters ----
 
@@ -199,7 +208,7 @@ add_geocoded_school <- function(.data,
 
 st_as_sf_schools <- function(.data, crs = "WGS84") {
   
-  sf_schools <- sf::st_as_sf(.data, coords = c("long", "lat")) %>%
+  sf_schools <- sf::st_as_sf(.data, coords = c("Longitude", "Latitude")) %>%
     sf::st_set_crs("WGS84")
   
   return(sf_schools)
@@ -243,6 +252,8 @@ get_sf_isochrone <- function(.data, profile = NULL,
 
 get_geocoded_students <- function(region = NULL) {
   
+  message(paste("Attempting student geocodes for the region:", region))
+  
   df_schools <- ideadata::get_regions() %>%
     dplyr::filter(RegionDescription == region) %>%
     dplyr::select(RegionID,
@@ -277,6 +288,9 @@ get_geocoded_students <- function(region = NULL) {
   n_groups <- ceiling(n_students / 10000)
   
   # n_groups == 1 is the original code
+  
+  message(paste("Number of students identified:", n_students))
+  message(paste("Number of iterations identified:", n_groups))
   
   if (n_groups == 1) {
     
@@ -514,7 +528,264 @@ get_geocoded_students <- function(region = NULL) {
       df_students_geocoded_6
     )
     
+  } else if (n_groups == 7) {
+    
+    df_students_geocoded_1 <- df_students[1:10000,] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 1 (10000 cumulative observations) completed")
+    
+    df_students_geocoded_2 <- df_students[10001:20000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 2 (20000 cumulative observations) completed")
+    
+    df_students_geocoded_3 <- df_students[20001:30000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 3 (30000 cumulative observations) completed")
+    
+    df_students_geocoded_4 <- df_students[30001:40000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 4 (40000 cumulative observations) completed")
+    
+    df_students_geocoded_5 <- df_students[40001:50000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 5 (50000 cumulative observations) completed")
+    
+    df_students_geocoded_6 <- df_students[50001:60000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 6 (60000 cumulative observations) completed")
+    
+    df_students_geocoded_7 <- df_students[60001:n_students, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message(paste0("All groups (", n_students, " cumulative observations) completed"))
+    
+    df_students_geocoded <- dplyr::bind_rows(
+      df_students_geocoded_1,
+      df_students_geocoded_2,
+      df_students_geocoded_3,
+      df_students_geocoded_4,
+      df_students_geocoded_5,
+      df_students_geocoded_6,
+      df_students_geocoded_7
+    )
+    
+  } else if (n_groups == 8) {
+    
+    df_students_geocoded_1 <- df_students[1:10000,] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 1 (10000 cumulative observations) completed")
+    
+    df_students_geocoded_2 <- df_students[10001:20000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 2 (20000 cumulative observations) completed")
+    
+    df_students_geocoded_3 <- df_students[20001:30000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 3 (30000 cumulative observations) completed")
+    
+    df_students_geocoded_4 <- df_students[30001:40000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 4 (40000 cumulative observations) completed")
+    
+    df_students_geocoded_5 <- df_students[40001:50000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 5 (50000 cumulative observations) completed")
+    
+    df_students_geocoded_6 <- df_students[50001:60000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 6 (60000 cumulative observations) completed")
+    
+    df_students_geocoded_7 <- df_students[60001:70000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 7 (70000 cumulative observations) completed")
+    
+    df_students_geocoded_8 <- df_students[70001:n_students, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message(paste0("All groups (", n_students, " cumulative observations) completed"))
+    
+    df_students_geocoded <- dplyr::bind_rows(
+      df_students_geocoded_1,
+      df_students_geocoded_2,
+      df_students_geocoded_3,
+      df_students_geocoded_4,
+      df_students_geocoded_5,
+      df_students_geocoded_6,
+      df_students_geocoded_7,
+      df_students_geocoded_8
+    )
+    
+  } else if (n_groups == 9) {
+    
+    df_students_geocoded_1 <- df_students[1:10000,] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 1 (10000 cumulative observations) completed")
+    
+    df_students_geocoded_2 <- df_students[10001:20000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 2 (20000 cumulative observations) completed")
+    
+    df_students_geocoded_3 <- df_students[20001:30000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 3 (30000 cumulative observations) completed")
+    
+    df_students_geocoded_4 <- df_students[30001:40000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 4 (40000 cumulative observations) completed")
+    
+    df_students_geocoded_5 <- df_students[40001:50000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 5 (50000 cumulative observations) completed")
+    
+    df_students_geocoded_6 <- df_students[50001:60000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 6 (60000 cumulative observations) completed")
+    
+    df_students_geocoded_7 <- df_students[60001:70000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 7 (70000 cumulative observations) completed")
+    
+    df_students_geocoded_8 <- df_students[70001:80000, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message("Group 8 (80000 cumulative observations) completed")
+    
+    df_students_geocoded_9 <- df_students[80001:n_students, ] %>%
+      tidygeocoder::geocode(street = physical_street,
+                            city = physical_city,
+                            state = physical_state,
+                            postalcode = physical_zip,
+                            method = "geocodio")
+    
+    message(paste0("All groups (", n_students, " cumulative observations) completed"))
+    
+    df_students_geocoded <- dplyr::bind_rows(
+      df_students_geocoded_1,
+      df_students_geocoded_2,
+      df_students_geocoded_3,
+      df_students_geocoded_4,
+      df_students_geocoded_5,
+      df_students_geocoded_6,
+      df_students_geocoded_7,
+      df_students_geocoded_8,
+      df_students_geocoded_9
+    )
+    
   }
+  
+  message(paste("Completed student geocodes for the region:", region))
   
   return(df_students_geocoded)
   
@@ -540,31 +811,40 @@ st_as_sf_students <- function(.data, crs = "WGS84") {
 
 ```{r pull_data}
 # pulls current IDEA students, geocodes, and turns into sf
-sf_students_idea_mvp <- df_counties_all %>%
-  dplyr::filter(region %in% mvp_regions) %>%
+sf_students_idea <- df_counties_all %>%
+  # dplyr::filter(region %in% mvp_regions) %>%
   dplyr::distinct(region) %>%
   # df:
   # ~ region
   purrr::pmap(get_geocoded_students) %>%
   purrr::list_rbind() %>%
   st_as_sf_students()
-
-
-# turns current IDEA schools into sf
-sf_schools_idea_mvp <- df_geolocated_schools %>%
-  dplyr::filter(region %in% mvp_regions) %>%
-  st_as_sf_schools()
 ```
 
+```{r get_sf_schools_data}
+# turns current IDEA schools into sf
+sf_schools_idea <- df_geolocated_schools %>%
+  # dplyr::filter(region %in% mvp_regions) %>%
+  st_as_sf_schools()
 
-## Get isochrones for schools
 
-```{r get_isochrones}
-sf_isochrones_idea_mvp <- sf_schools_idea_mvp %>%
+sf_isochrones_idea <- sf_schools_idea %>%
   {
     list(
+      get_sf_isochrone(., "driving", 1),
+      get_sf_isochrone(., "driving", 2),
+      get_sf_isochrone(., "driving", 3),
+      get_sf_isochrone(., "driving", 4),
       get_sf_isochrone(., "driving", 5),
+      get_sf_isochrone(., "driving", 6),
+      get_sf_isochrone(., "driving", 7),
+      get_sf_isochrone(., "driving", 8),
+      get_sf_isochrone(., "driving", 9),
       get_sf_isochrone(., "driving", 10),
+      get_sf_isochrone(., "driving", 11),
+      get_sf_isochrone(., "driving", 12),
+      get_sf_isochrone(., "driving", 13),
+      get_sf_isochrone(., "driving", 14),
       get_sf_isochrone(., "driving", 15)
     )
   } %>%
@@ -573,36 +853,49 @@ sf_isochrones_idea_mvp <- sf_schools_idea_mvp %>%
   sf::st_set_crs("WGS84")
 ```
 
+## Write to Feather
+
+```{r}
+working_dir <- here::here("app")
+
+# Save as arrow files
+st_write_feather(sf_schools_idea, glue::glue("{working_dir}/sf_schools_idea_2024.feather"))
+st_write_feather(sf_isochrones_idea, glue::glue("{working_dir}/sf_isochrones_idea_2024.feather"))
+st_write_feather(sf_students_idea, glue::glue("{working_dir}/sf_students_idea_2024.feather"))
+
+st_write_feather(sf_dot_density, glue::glue("{working_dir}/sf_dot_density.feather"))
+```
+
 
 ## Pin data
 
 ```{r pin_data}
 # attach to pins board ----
-board_posit <- pins::board_connect()
-
-board_posit %>%
-  pins::pin_write(
-    sf_students_idea_mvp,
-    name = "dashboard_geolocated_idea_students",
-    description = "Geolocated IDEA students",
-    type = "qs"
-  )
-
-board_posit %>%
-  pins::pin_write(
-    sf_schools_idea_mvp,
-    name = "dashboard_geolocated_idea_schools",
-    description = "Geolocated IDEA schools and sites",
-    type = "qs"
-  )
-
-board_posit %>%
-  pins::pin_write(
-    sf_isochrones_idea_mvp,
-    name = "dashboard_isochrones_for_idea_schools",
-    description = "Isochrones IDEA schools and sites",
-    type = "qs"
-  )
+# board_posit <- pins::board_connect()
+# 
+# board_posit %>%
+#   pins::pin_write(
+#     sf_students_idea_mvp,
+#     name = "dashboard_geolocated_idea_students",
+#     description = "Geolocated IDEA students",
+#     type = "qs"
+#   )
+# 
+# board_posit %>%
+#   pins::pin_write(
+#     sf_schools_idea_mvp,
+#     name = "dashboard_geolocated_idea_schools",
+#     description = "Geolocated IDEA schools and sites",
+#     type = "qs"
+#   )
+# 
+# board_posit %>%
+#   pins::pin_write(
+#     sf_isochrones_idea_mvp,
+#     name = "dashboard_isochrones_for_idea_schools",
+#     description = "Isochrones IDEA schools and sites",
+#     type = "qs"
+#   )
 ```
 
 

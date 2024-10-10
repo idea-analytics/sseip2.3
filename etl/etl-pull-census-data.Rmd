@@ -7,8 +7,8 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2023-10-30
-- Last deployed (development): 2023-11-08
+- Last modified: 2024-10-10
+- Last deployed (development): 2023-10-30
 - Last deployed (production): 
 - Inputs:
 - Outputs: aline.orr/acs_data
@@ -26,7 +26,7 @@ httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 library(tidyverse)
 library(tidycensus)
 library(sf)
-library(qs)
+library(sfarrow)
 library(pins)
 ```
 
@@ -40,6 +40,9 @@ df_counties_tx <- tribble(
   "TX", "Austin", "Hays County",
   "TX", "Austin", "Bastrop County",
   "TX", "Austin", "Williamson County",
+  "TX", "Austin", "Caldwell County",
+  
+  "TX", "Coastal Bend", "Nueces County",
 
   "TX", "El Paso", "El Paso County",
   
@@ -59,6 +62,7 @@ df_counties_tx <- tribble(
   "TX", "Tarrant County", "Tarrant County",
   "TX", "Tarrant County", "Parker County",
   "TX", "Tarrant County", "Burleson County",
+  "TX", "Tarrant County", "Dallas County"
 )
 
 df_counties_ips <- tribble(
@@ -68,7 +72,8 @@ df_counties_ips <- tribble(
   
   "FL", "Jacksonville", "Duval County",
   "FL", "Tampa", "Hillsborough County",
-  "FL", "Tampa", "Polk County" ,
+  "FL", "Tampa", "Polk County",
+  "FL", "Orlando", "Orange County",
   
   "LA", "Southern Louisiana", "East Baton Rouge Parish",
 )
@@ -83,7 +88,7 @@ df_counties_all <- bind_rows(
 ```{r define_parameters}
 # census-related parameters ----
 CENSUS_API_KEY <- Sys.getenv("CENSUS_API_KEY")
-CENSUS_YEAR <- 2021
+CENSUS_YEAR <- 2022
 ```
 
 
@@ -102,8 +107,8 @@ st_mutate_acs <- function(.data,
     table_short_name = table_short_name,
     table_number = table_number,
     geography = geography,
-    county = str_split_i(NAME, ", ", -2),
-    state = str_split_i(NAME, ", ", -1)
+    county = str_split_i(NAME, "; ", -2),
+    state = str_split_i(NAME, "; ", -1)
   ) %>%
   select(
     table_name,
@@ -522,11 +527,24 @@ sf_acs_all <-
   ) %>%
   map(., list_rbind) %>%
   list_rbind() %>%
-  st_as_sf()
+  left_join(df_counties_all %>%
+              select(-state),
+            by = c("county" = "county")) %>%
+  relocate(region,
+           .after = state) %>%
+  st_as_sf() 
 
 
 ```
 
+## Write to Feather
+
+```{r write_feather}
+working_dir <- here::here("app")
+
+# Save as arrow files
+st_write_feather(sf_acs_all, glue::glue("{working_dir}/sf_acs_all_2022.feather"))
+```
 
 ## Pin data
 

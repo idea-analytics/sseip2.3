@@ -7,7 +7,7 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2023-11-11
+- Last modified: 2024-10-10
 - Last deployed (development): 2023-11-11
 - Last deployed (production): 
 - Inputs: aline.orr/acs_data
@@ -26,6 +26,7 @@ httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 library(tidyverse)
 library(terra)       # engine used to create dot densities
 library(sf)
+library(sfarrow)
 library(qs)
 library(tidycensus)  # as_dot_density() wrapper
 library(pins)
@@ -39,6 +40,12 @@ sf_acs <- pin_read(board, "aline.orr/acs_data") # read this pin
 ```
 
 ```{r}
+working_dir <- here::here("app")
+sf_acs <- st_read_feather(glue::glue("{working_dir}/sf_acs_all_2022.feather"))
+```
+
+
+```{r}
 df_counties_tx <- tribble(
   ~ state, ~ region, ~ county,
   
@@ -46,6 +53,9 @@ df_counties_tx <- tribble(
   "TX", "Austin", "Hays County",
   "TX", "Austin", "Bastrop County",
   "TX", "Austin", "Williamson County",
+  "TX", "Austin", "Caldwell County",
+  
+  "TX", "Coastal Bend", "Nueces County",
 
   "TX", "El Paso", "El Paso County",
   
@@ -65,6 +75,7 @@ df_counties_tx <- tribble(
   "TX", "Tarrant County", "Tarrant County",
   "TX", "Tarrant County", "Parker County",
   "TX", "Tarrant County", "Burleson County",
+  "TX", "Tarrant County", "Dallas County"
 )
 
 df_counties_ips <- tribble(
@@ -74,7 +85,8 @@ df_counties_ips <- tribble(
   
   "FL", "Jacksonville", "Duval County",
   "FL", "Tampa", "Hillsborough County",
-  "FL", "Tampa", "Polk County" ,
+  "FL", "Tampa", "Polk County",
+  "FL", "Orlando", "Orange County",
   
   "LA", "Southern Louisiana", "East Baton Rouge Parish",
 )
@@ -83,22 +95,18 @@ df_counties_all <- bind_rows(
   df_counties_tx,
   df_counties_ips
 )
-
-mvp_counties <- df_counties_all %>%
-  filter(region %in% c("Austin", "Permian Basin", "Tarrant County", "Cincinnati", "Jacksonville", "Tampa")) %>%
-  pull(county)
 ```
 
 ## Transform data
 
 ```{r dot_density_children_poverty}
 # children in poverty ----
-# time 888.06 sec / 103.83 mvp
+# time: 1452.64 sec
+
 sf_children_in_poverty <- sf_acs %>%
   
   # get appropriate table rows
-  filter(table_short_name == "Children in poverty",
-         county %in% mvp_counties) %>% # pull specific ACS table
+  filter(table_short_name == "Children in poverty") %>%
   filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
   
   # convert to dot density
@@ -107,16 +115,19 @@ sf_children_in_poverty <- sf_acs %>%
     values_per_dot = 20
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
 
+st_write_feather(sf_children_in_poverty, glue::glue("{working_dir}/sf_children_poverty_dd_2022.feather"))
+```
 
+```{r}
 # children by age group, block group ----
-# time: 4861.64 sec / 1380.67 mvp
+# time: 9944.39 sec
+tic()
 sf_children_by_age_group_block_group <- sf_acs %>%
   
   # get appropriate table rows
   filter(
-    table_short_name == "Children by age group",
-    geography == "block group",
-    county %in% mvp_counties
+    table_short_name == "Children by age group and sex",
+    geography == "block group"
   ) %>% # pull specific ACS table
   filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
   
@@ -142,8 +153,11 @@ sf_children_by_age_group_block_group <- sf_acs %>%
     value = "estimate",
     values_per_dot = 20
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
+toc()
+```
 
 
+```{r}
 # children by age group, tract ----
 # time: 1080.05 mvp
 sf_children_by_age_group_tract <- sf_acs %>%
@@ -151,8 +165,7 @@ sf_children_by_age_group_tract <- sf_acs %>%
   # get appropriate table rows
   filter(
     table_short_name == "Children by age group",
-    geography == "tract",
-    county %in% mvp_counties
+    geography == "tract"
   ) %>% # pull specific ACS table
   filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
   
@@ -168,10 +181,7 @@ sf_children_by_age_group_tract <- sf_acs %>%
 sf_household_income <- sf_acs %>%
   
   # get appropriate table rows
-  filter(
-    table_short_name == "Household income",
-    county %in% mvp_counties
-  ) %>% # pull specific ACS table
+  filter(table_short_name == "Household income") %>% # pull specific ACS table
   filter(
     variable != "Total",
     !st_is_empty(.)
@@ -207,10 +217,7 @@ sf_household_income <- sf_acs %>%
 sf_students_in_poverty <- sf_acs %>%
   
   # get appropriate table rows
-  filter(
-    table_short_name == "Students in poverty",
-    county %in% mvp_counties
-  ) %>% # pull specific ACS table
+  filter(table_short_name == "Students in poverty") %>% # pull specific ACS table
   filter(
     variable != "Total",
     !st_is_empty(.)
@@ -221,17 +228,17 @@ sf_students_in_poverty <- sf_acs %>%
     value = "estimate",
     values_per_dot = 20
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
+```
 
 
+```{r}
 # households with children under 18 ----
-# time 303.85 mvp
+# time: 2165.5 sec
+
 sf_hh_children_under_18 <- sf_acs %>%
   
   # get appropriate table rows
-  filter(
-    table_short_name == "Households with children under 17",
-    county %in% mvp_counties
-  ) %>% # pull specific ACS table
+  filter(table_short_name == "Households with children under 18") %>% # pull specific ACS table
   filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
   
   # convert to dot density
@@ -241,15 +248,17 @@ sf_hh_children_under_18 <- sf_acs %>%
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
 
 
+# st_write_feather(sf_hh_children_under_18, glue::glue("{working_dir}/sf_hh_children_under_18_dd_2022.feather"))
+```
+
+```{r}
 # mobility ----
 # time 83.11 mvp
+tic()
 sf_mobility <- sf_acs %>%
   
   # get appropriate table rows
-  filter(
-    table_short_name == "Mobility",
-    county %in% mvp_counties
-  ) %>% # pull specific ACS table
+  filter(table_short_name == "Mobility") %>% # pull specific ACS table
   filter(!st_is_empty(.)) %>% # filter out NA geometry to prep for dot density
   
   # consolidate variable groups
@@ -274,6 +283,9 @@ sf_mobility <- sf_acs %>%
     value = "estimate",
     values_per_dot = 20
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
+toc()
+
+st_write_feather(sf_mobility, glue::glue("{working_dir}/sf_mobility_dd_2022.feather"))
 ```
 
 
