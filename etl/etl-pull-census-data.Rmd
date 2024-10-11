@@ -76,12 +76,14 @@ df_counties_ips <- tribble(
   "FL", "Orlando", "Orange County",
   
   "LA", "Southern Louisiana", "East Baton Rouge Parish",
+  "LA", "Southern Louisiana", "Orleans Parish"
 )
 
 df_counties_all <- bind_rows(
   df_counties_tx,
   df_counties_ips
 )
+
 ```
 
 
