@@ -64,7 +64,7 @@ df_counties_all <- dplyr::bind_rows(
 )
 
 
-sf_site_suitability_mvp <- st_read_feather("site-suitabiliyt-v2/sf_site_suitability.feather") %>%
+sf_site_suitability_mvp <- st_read_feather("sf_site_suitability.feather") %>%
   filter(!is.na(h3_address)) %>%
   mutate(popup = glue::glue("<strong>Site Suitability Index: {round(index_total,2)}</strong>",
                             "Students in poverty index: {round(index_students_poverty,2)}",
@@ -105,7 +105,19 @@ sf_counties <- st_read_feather("sf_counties_2022.feather") %>%
             by = c("NAMELSAD" = "county",
                    "STUSPS" = "state"))
 
+sf_school_districts_2022 <- st_read_feather("sf_school_districts_2022.feather") %>%
+  left_join(sf_states %>%
+              as.data.frame() %>%
+              select(STATEFP,
+                     STUSPS,
+                     STATENAME = NAME),
+            by = c("STATEFP" = "STATEFP"))
 
+load(here::here("app", "accountability-tx.rda"))
+load(here::here("app", "accountability-fl.rda"))
+
+sf_accountability_schools_la <- st_read_feather(here::here("app", "sf_accountability_la_2023.feather"))
+sf_accountability_schools_oh <- st_read_feather(here::here("app", "sf_accountability_oh_schools_2024.feather"))
 
 regions <- sf_counties %>%
   as_tibble() %>%
@@ -225,13 +237,15 @@ ui <- page_navbar(
           label = "Select layer to display",
           choices = list(
             "Counties" = "counties",
+            "School districts" = "school_districts",
             "IDEA Students" = "idea_stus",
             "Drive times" = "drive_times",
             "Children by age" = "children_by_age",
             "Households with children under 18" = "households_children_under18",
             "Children in Poverty" = "children_in_poverty",
             "Household Income" = "household_income",
-            "Students in Poverty" = "students_in_poverty"),
+            "Students in Poverty" = "students_in_poverty"
+          ),
           selected = NULL
         ),
 
@@ -265,7 +279,7 @@ ui <- page_navbar(
                       max = round(max(sf_site_suitability_mvp$index_total),2)+.01,
                       value = c(min(sf_site_suitability_mvp$index_total),
                                 max(sf_site_suitability_mvp$index_total)
-                      ),
+                      )
 
           )
         ),
@@ -277,18 +291,23 @@ ui <- page_navbar(
         #               "Drive times filter",
         #               min = 1,
         #               max = 15,
-        #               value = c(1, 15))
+        #               value = c(1, 10))
         # ),
 
         conditionalPanel(
           condition = "input.layer_selector.includes('drive_times')",
           checkboxGroupInput(
-            "time_selector",
+            "drive_time_controls",
             label = "Select drive times",
             choices = 1:15,
-            selected = c(5, 10)
+            selected = 1:15
           )
         ),
+
+        # conditionalPanel(
+        #   condition = "input.layer_selector.includes('drive_times')",
+        #   uiOutput("drive_time_controls")
+        # ),
 
         #### IDEA schools filter ------------------------------------------------
         conditionalPanel(
@@ -369,7 +388,7 @@ ui <- page_navbar(
                                           "Enrolled in grade 5 to grade 8",
                                           "Enrolled in grade 9 to grade 12")
           )
-        ),
+        )
 
 
 
@@ -382,11 +401,17 @@ ui <- page_navbar(
 
         # text
         tags$p(icon("rotate-right", lib = "font-awesome"),
-               "Last updated ", tags$b("October 21, 2024")),
+               "App last updated ", tags$b("November 4, 2024."),
+               tags$br(), tags$br(),
+               "Census data from 5-Year American Community Survey, 2017-2022.",
+               tags$br(), tags$br(),
+               "IDEA data last updated October 2024.",
+               tags$br(), tags$br(),
+               "Florida accountability data from 2022. Louisiana accountability data from 2023. Ohio accountability data from 2024. Texas accountability data from 2022."),
         tags$p(icon("pen", lib = "font-awesome"),
                "Created by the ",
-               tags$a(href = "https://ideapublicschoolsorg.sharepoint.com/RA/SitePages/Home.aspx", "Research & Analytics team"),
-               ". Please contact ",
+               tags$a(href = "https://ideapublicschoolsorg.sharepoint.com/RA/SitePages/Home.aspx", "Research & Analytics team."),
+               "Please contact ",
                tags$a(href = "mailto:steven.macapagal@ideapublicschools.org?subject=Site Suitability App", "Steven Macapagal"),
                "or ",
                tags$a(href = "mailto:christopher.haid@ideapublicschools.org?subject=Site Suitability App", "Chris Haid"),
@@ -427,9 +452,15 @@ server <- function(input, output) {
     #req(input$region_selector)
 
     #     show_modal_progress_line(value = 0.05, "Loading map data and finding Austin...")
-    initial_map <- mapboxgl(center = c(-97.661324953909, 30.3381543635444),
-                            zoom = 8.28974152189369,
-                            style = rdeck::mapbox_gallery_frank()) %>%
+    initial_map <-
+      mapboxgl(
+        center = c(-97.661324953909, 30.3381543635444),
+        zoom = 8.28974152189369,
+        style = rdeck::mapbox_gallery_frank()
+      )
+
+    ### add map controls ----
+    initial_map <- initial_map %>%
       add_geocoder_control(
         position = "top-left",
         placeholder = "Search an address",
@@ -451,40 +482,42 @@ server <- function(input, output) {
 
     #      update_modal_progress(value = .1, "Loading site suitability data...",)
     initial_map <- initial_map %>%
-      add_fill_layer(id = "suitability",
-                     source = sf_site_suitability_mvp,
-                     fill_color = interpolate(column = "index_total",
-                                              values = c(.001, .01, .1, 1),
-                                              stops  = c(idea_colors$lightgray,
-                                                         idea_colors$gray,
-                                                         idea_colors$melon,
-                                                         idea_colors$magenta),
-                                              na_color = idea_colors$coolgray),
-                     fill_opacity = 0.4,
-                     popup = "popup",
-                     tooltip = "tooltip",
-                     hover_options = list(
-                       fill_color = "yellow",
-                       fill_opacity = .8
-                     )
+      add_fill_layer(
+        id = "suitability",
+        source = sf_site_suitability_mvp,
+        fill_color = interpolate(
+          column = "index_total",
+          values = c(.001, .01, .1, 1),
+          stops  = c(idea_colors$lightgray,
+                     idea_colors$gray,
+                     idea_colors$melon,
+                     idea_colors$magenta),
+          na_color = idea_colors$coolgray),
+        fill_opacity = 0.4,
+        popup = "popup",
+        tooltip = "tooltip",
+        hover_options = list(
+          fill_color = "yellow",
+          fill_opacity = .8
+        )
       ) %>%
       add_legend(
         "Site Suitability Index",
         position = "bottom-left",
         values = c(.001, .01, .1, 1),
-        colors  = c(idea_colors$lightgray,
-                    idea_colors$gray,
-                    idea_colors$melon,
-                    idea_colors$magenta)
+        colors = c(idea_colors$lightgray,
+                   idea_colors$gray,
+                   idea_colors$melon,
+                   idea_colors$magenta)
       )
 
     #      update_modal_progress(value = .2, "Loading drive times data...")
     initial_map <- initial_map %>%
       add_fill_layer(
-        id = "drive_times",
+        id = "drive_time_isochrones",
         source = sf_isochrones_idea_mvp,
         fill_color = get_column("hex_code"),
-        fill_opacity = 0.2,
+        fill_opacity = 0.1,
         visibility = "none"
       )
 
@@ -492,16 +525,59 @@ server <- function(input, output) {
     initial_map <- initial_map %>%
       add_circle_layer(
         id ="schools",
-        source = sf_idea_schools_mvp,slot = "top",
+        source = sf_idea_schools_mvp,
+        slot = "top",
         circle_radius = 5,
         circle_color = get_column("hex_code"),
-        circle_opacity = 1, tooltip = "SchoolShortName")  %>%
-      add_fill_layer(
+        circle_opacity = 1,
+        tooltip = "SchoolShortName"
+      ) %>%
+      # add_layer(
+      #   id = "school_districts",
+      #   type = "fill",
+      #   source = sf_school_districts_2022,
+      #   paint = list(
+      #     "line-color" = idea_colors_2024$blue,
+      #     "line-width" = 1,
+      #     "fill-opacity" = 0.1
+      #   ),
+      #   tooltip = "NAME"
+      # ) %>%
+      add_circle_layer(
+        id = "school_districts",
+        # type = "circle",
+        source = sf_accountability_schools_tx,
+        circle_radius = 5,
+        # circle_color = interpolate(
+        #   column = "overall_score",
+        #   values = c(40, 100),
+        #   stops = idea_palette_ramp("div")(2),
+        #   na_color = "lightgrey"
+        # ),
+        circle_color = match_expr(
+          "overall_rating",
+          values = c("A", "B", "C", "Not Rated: Senate Bill 1365"),
+          stops = idea_palette_ramp("qual")(4)
+        ),
+        circle_opacity = 1,
+        tooltip = "overall_score"
+      ) %>%
+      add_categorical_legend(
+        "Surrounding School Ratings",
+        position = "bottom-left",
+        values = c("A", "B", "C", "Not Rated: Senate Bill 1365"),
+        colors = idea_palette_ramp("qual")(4)
+        # add = TRUE
+      ) %>%
+      add_layer(
         id = "counties",
-        source = sf_counties,
-        fill_outline_color = "black",
-        fill_opacity = 0
-        # visbility = "none"
+        type = "line",
+        source = sf_counties %>%
+          filter(!is.na(region)),
+        paint = list(
+          "line-color" = idea_colors_2024$gray,
+          "line-width" = 1
+        )
       )
 
 
@@ -509,8 +585,10 @@ server <- function(input, output) {
     #update_modal_progress(value = .7, "Getting layers from mapbox...")
 
     initial_map <- initial_map %>%
-      add_vector_source(url = "mapbox://christopher-haid.test_hhi_tileset",
-                        id = "mapbox_layer") %>%
+      add_vector_source(
+        url = "mapbox://christopher-haid.test_hhi_tileset",
+        id = "mapbox_layer"
+      ) %>%
       add_circle_layer(
         id = "household_income",
         source = "mapbox_layer",
@@ -537,7 +615,7 @@ server <- function(input, output) {
         circle_radius = 2,
         circle_color = match_expr(
           column = "variable",
-          values = c("nrolled in nursery school, preschool",
+          values = c("Enrolled in nursery school, preschool",
                      "Enrolled in kindergarten",
                      "Enrolled in grade 1 to grade 4",
                      "Enrolled in grade 5 to grade 8",
@@ -562,7 +640,8 @@ server <- function(input, output) {
         circle_radius = 2,
         circle_color = match_expr(
           column = "variable",
-          values = c("Under 1.00", "1.00 to 1.99"),
+          values = c("Under 1.00",
+                     "1.00 to 1.99"),
           stops = children_in_poverty_palette),
         circle_opacity = .5,
         visibility = "none"
@@ -575,7 +654,10 @@ server <- function(input, output) {
         circle_radius = 2,
         circle_color = match_expr(
           column = "variable",
-          values = c("Under 5 years", "5 to 9 years", "10 to 14 years", "15 to 17 years"),
+          values = c("Under 5 years",
+                     "5 to 9 years",
+                     "10 to 14 years",
+                     "15 to 17 years"),
           stops = children_by_age_block_palette),
         circle_opacity = .45,
         visibility = "none"
@@ -627,7 +709,8 @@ server <- function(input, output) {
   ## ssi layer observer ------------------------------------------------------
   observeEvent(input$ssi_switch, {
     #req(input$ssi_switch)
-    if(input$ssi_switch == FALSE){
+    if (input$ssi_switch == FALSE) {
+
       mapboxgl_proxy("map") %>%
         #clear_layer("suitability")
         set_layout_property("suitability", "visibility", "none")
@@ -643,98 +726,159 @@ server <- function(input, output) {
 
 
   ## region event observer ---------------------------------------------------
-  observeEvent(input$region_selector,
-               #, ignoreNULL = TRUE, ignoreInit = FALSE,
-               {
-                 req(input$region_selector)
-                 mapboxgl_proxy("map") %>%
-                   fit_bounds(sf_counties %>%
-                                filter(region == input$region_selector),
-                              animate = TRUE)
-               }) #%>% bindEvent(input$region_selector)
+  observeEvent(input$region_selector,{
+
+    req(input$region_selector)
+    mapboxgl_proxy("map") %>%
+      fit_bounds(
+        sf_counties %>%
+          filter(region == input$region_selector),
+        animate = TRUE
+      )
+
+    })
 
   #map type observer ---------------------------------------------------------
   observeEvent(input$map_type_selector, {
     #req(input$region_selector)
     if (input$map_type_selector != "frankfurt") {
+
       mapboxgl_proxy("map")  %>%
         #set_view(input$map_center, input$map_zoom) %>%
-        set_style(mapbox_style(input$map_type_selector), diff = FALSE) %>%
-        fit_bounds(sf_site_suitability_mvp %>% filter(REGION==input$region_selector),
-                   animate = FALSE)
+        set_style(mapbox_style(input$map_type_selector), diff = FALSE) # %>%
+        # fit_bounds(
+        #   sf_site_suitability_mvp %>%
+        #     filter(REGION == input$region_selector),
+        #   animate = FALSE
+        # )
 
     } else {
+
       mapboxgl_proxy("map") %>%
         set_style(style = "mapbox://styles/mapbox-map-design/ckshxkppe0gge18nz20i0nrwq", diff = FALSE) %>%
         set_view(input$map_center, input$map_zoom)
+
     }
 
   })
 
   ## layer selector observer -------------------------------------------------
   observeEvent(input$layer_selector, {
+    ### Counties ----------------------------------------------------------
+    if ("counties" %in% input$layer_selector) {
+
+      mapboxgl_proxy("map") %>%
+        set_layout_property("counties", "visibility", "visible")
+
+    } else {
+
+      mapboxgl_proxy("map") %>%
+        set_layout_property("counties", "visibility",  "none")
+
+    }
+
+    ### School districts ----------------------------------------------------------
+    # if ("school_districts" %in% input$layer_selector) {
+    #
+    #   mapboxgl_proxy("map") %>%
+    #     set_layout_property("school_districts", "visibility", "visible")
+    #
+    # } else {
+    #
+    #   mapboxgl_proxy("map") %>%
+    #     set_layout_property("school_districts", "visibility",  "none")
+    #
+    # }
+
     ### IDEA Students --------------------------------------------------------
-    if("idea_stus" %in% input$layer_selector ){
+    if ("idea_stus" %in% input$layer_selector) {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("students-layer", "visibility",  "visible")
+
     } else {
       #if({"idea_stus" %in% input$layer_selector}){
       mapboxgl_proxy("map") %>%
         set_layout_property("students-layer", "visibility", "none")
+
     }
 
     ### Drive times ----------------------------------------------------------
-    if("drive_times" %in% input$layer_selector){
+    if ("drive_times" %in% input$layer_selector) {
+
       mapboxgl_proxy("map") %>%
-        set_layout_property("drive_times", "visibility", "visible")
+        set_layout_property("drive_time_isochrones", "visibility", "visible")
+
     } else {
+
       mapboxgl_proxy("map") %>%
-        set_layout_property("drive_times", "visibility",  "none")
+        set_layout_property("drive_time_isochrones", "visibility",  "none")
+
     }
 
     ### Children by age -----------------------------------------------------
-    if("children_by_age" %in% input$layer_selector){
+    if ("children_by_age" %in% input$layer_selector) {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("children_by_age", "visibility", "visible")
+
     } else {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("children_by_age", "visibility",  "none")
+
     }
 
     ### Children in poverty ---------------------------------------------------
-    if("children_in_poverty" %in% input$layer_selector){
+    if ("children_in_poverty" %in% input$layer_selector) {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("children_in_poverty", "visibility", "visible")
+
     } else {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("children_in_poverty", "visibility",  "none")
+
     }
 
     ### Households children under 18 -----------------------------------------
-    if("households_children_under18" %in% input$layer_selector){
+    if ("households_children_under18" %in% input$layer_selector) {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("households_children_under18", "visibility", "visible")
+
     } else {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("households_children_under18", "visibility",  "none")
+
     }
 
     ### Students in poverty ---------------------------------------------------
-    if("students_in_poverty" %in% input$layer_selector){
+    if ("students_in_poverty" %in% input$layer_selector) {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("students_in_poverty", "visibility", "visible")
+
     } else {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("students_in_poverty", "visibility",  "none")
+
     }
 
     ### Household income ---------------------------------------------------
-    if("household_income" %in% input$layer_selector){
+    if ("household_income" %in% input$layer_selector) {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("household_income", "visibility", "visible")
+
     } else {
+
       mapboxgl_proxy("map") %>%
         set_layout_property("household_income", "visibility",  "none")
+
     }
 
   },
@@ -744,21 +888,25 @@ server <- function(input, output) {
   ## Filter observers ---------------------------------------------------------
   ### SSI filter -------------------------------------------------------------
   observeEvent(input$ssi_filter, {
+
     req(input$ssi_filter)
     mapboxgl_proxy("map") %>%
-      set_filter("suitability",
-                 list("all",
-                      list(">=", get_column("index_total"), input$ssi_filter[1]),
-                      list("<=", get_column("index_total"), input$ssi_filter[2]))
-
+      set_filter(
+        "suitability",
+        list(
+          "all",
+          list(">=", get_column("index_total"), input$ssi_filter[1]),
+          list("<=", get_column("index_total"), input$ssi_filter[2])
+        )
       )
   })
 
   ### drive time filter -------------------------------------------------------------
   # observeEvent(input$time_filter, {
+  #
   #   req(input$time_filter)
   #   mapboxgl_proxy("map") %>%
-  #     set_filter("drive_times",
+  #     set_filter("drive_time_isochrones",
   #                list("all",
   #                     list(">=", get_column("time"), input$time_filter[1]),
   #                     list("<=", get_column("time"), input$time_filter[2]))
@@ -766,64 +914,86 @@ server <- function(input, output) {
   #     )
   # })
 
-  observeEvent(input$time_selector, {
-    req(input$time_selector)
-    mapboxgl_proxy("map") %>%
-      set_filter("drive_times",
+  observeEvent(input$drive_time_controls, {
 
-                 c("in", "time", input$time_selector))
+    req(input$drive_time_controls)
+    mapboxgl_proxy("map") %>%
+      set_filter(
+        "drive_time_isochrones",
+        list("in", "time", input$drive_time_controls)
+      )
 
   })
 
   ### IDEA schools filters -------------------------------------------------
   observeEvent(input$schools_selector, {
+
     req(input$schools_selector)
     mapboxgl_proxy("map") %>%
-      set_filter("students-layer",
-
-                 c("in", "school_short_name", input$schools_selector))
+      set_filter(
+        "students-layer",
+        c("in", "school_short_name", input$schools_selector)
+      )
 
   })
 
 
   ### Children by age filter ------------------------------------------------
   observeEvent(input$children_by_age_filter, {
+
     req(input$children_by_age_filter)
     mapboxgl_proxy("map") %>%
-      set_filter("children_by_age",
-                 c("in", "variable", input$children_by_age_filter))
+      set_filter(
+        "children_by_age",
+        c("in", "variable", input$children_by_age_filter)
+      )
+
   })
 
   ### Children in poverty filter ------------------------------------------------
   observeEvent(input$children_in_poverty_filter, {
+
     req(input$children_in_poverty_filter)
     mapboxgl_proxy("map") %>%
-      set_filter("children_in_poverty",
-                 c("in", "variable", input$children_in_poverty_filter))
+      set_filter(
+        "children_in_poverty",
+        c("in", "variable", input$children_in_poverty_filter)
+      )
+
   })
 
   ### Household income filter ------------------------------------------------
   observeEvent(input$household_income_filter, {
+
     req(input$household_income_filter)
     mapboxgl_proxy("map") %>%
-      set_filter("household_income",
-                 c("in", "variable", input$household_income_filter))
+      set_filter(
+        "household_income",
+        c("in", "variable", input$household_income_filter)
+      )
+
   })
 
   ### Students in poverty filter ------------------------------------------------
   observeEvent(input$students_in_poverty_filter, {
+
     req(input$students_in_poverty_filter)
     mapboxgl_proxy("map") %>%
-      set_filter("students_in_poverty",
-                 c("in", "variable", input$students_in_poverty_filter))
+      set_filter(
+        "students_in_poverty",
+        c("in", "variable", input$students_in_poverty_filter)
+      )
+
   })
 
   ## UI RENDER ---------------------------------------------------------------
   ### IDEA schools input controls ---------------------------------------------
   output$schools_in_regions <- renderUI({
+
     req(input$region_selector)
     schools <- sf_idea_schools_mvp %>%
-      filter(Region   == input$region_selector) %>%
+      filter(Region   == input$region_selector,
+             SiteStatus == "In Operation") %>%
       pull(SchoolShortName)
     checkboxGroupInput(
       "schools_selector",
@@ -831,18 +1001,22 @@ server <- function(input, output) {
       choices = schools,
       selected = schools
     )
+
   })
 
   ### drive time input controls ---------------------------------------------
   # output$drive_time_controls <- renderUI({
-  #   req(input$time_selector)
+  #
+  #   req(input$drive_times)
   #   times <- 1:15
+  #
   #   checkboxGroupInput(
   #     "time_selector",
   #     label = "Select drive times",
   #     choices = times,
   #     selected = times
   #   )
+  #
   # })
 
 
