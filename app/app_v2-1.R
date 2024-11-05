@@ -1,4 +1,4 @@
-# app SM
+# app v. 2.1
 
 # Packages -------------------------------------------------------------------
 library(shiny)
@@ -237,7 +237,7 @@ ui <- page_navbar(
           label = "Select layer to display",
           choices = list(
             "Counties" = "counties",
-            "School districts" = "school_districts",
+            "Accountability" = "accountability",
             "IDEA Students" = "idea_stus",
             "Drive times" = "drive_times",
             "Children by age" = "children_by_age",
@@ -246,7 +246,7 @@ ui <- page_navbar(
             "Household Income" = "household_income",
             "Students in Poverty" = "students_in_poverty"
           ),
-          selected = NULL
+          selected = "counties"
         ),
 
         ### Filter inputs --------------------------------------------------------
@@ -401,11 +401,11 @@ ui <- page_navbar(
 
         # text
         tags$p(icon("rotate-right", lib = "font-awesome"),
-               "App last updated ", tags$b("November 4, 2024."),
+               "App last updated ", tags$b("November 5, 2024."),
                tags$br(), tags$br(),
                "Census data from 5-Year American Community Survey, 2017-2022.",
                tags$br(), tags$br(),
-               "IDEA data last updated October 2024.",
+               "IDEA schools last updated October 2024. IDEA students last updated December 2023.",
                tags$br(), tags$br(),
                "Florida accountability data from 2022. Louisiana accountability data from 2023. Ohio accountability data from 2024. Texas accountability data from 2022."),
         tags$p(icon("pen", lib = "font-awesome"),
@@ -419,7 +419,7 @@ ui <- page_navbar(
         tags$p(icon("handshake", lib = "font-awesome"),
                "Partnership with the Growth team."),
         tags$p(icon("file", lib = "font-awesome"),
-               "Version 1.0.0.9000")
+               "Version 2.1.0")
 
       )
     )
@@ -544,7 +544,7 @@ server <- function(input, output) {
       #   tooltip = "NAME"
       # ) %>%
       add_circle_layer(
-        id = "school_districts",
+        id = "accountability_tx",
         # type = "circle",
         source = sf_accountability_schools_tx,
         circle_radius = 5,
@@ -560,15 +560,17 @@ server <- function(input, output) {
           stops = idea_palette_ramp("qual")(4)
         ),
         circle_opacity = 1,
-        tooltip = "overall_score"
+        tooltip = "overall_score",
+        visibility = "none"
       ) %>%
-      add_categorical_legend(
-        "Surrounding School Ratings",
-        position = "bottom-left",
-        values = c("A", "B", "C", "Not Rated: Senate Bill 1365"),
-        colors = idea_palette_ramp("qual")(4)
-        # add = TRUE
-      ) %>%
+      # add_categorical_legend(
+      #   "Surrounding School Ratings",
+      #   position = "bottom-left",
+      #   values = c("A", "B", "C", "Not Rated: Senate Bill 1365"),
+      #   colors = idea_palette_ramp("qual")(4),
+      #   # visbility = "none",
+      #   add = TRUE
+      # ) %>%
       add_layer(
         id = "counties",
         type = "line",
@@ -778,17 +780,17 @@ server <- function(input, output) {
     }
 
     ### School districts ----------------------------------------------------------
-    # if ("school_districts" %in% input$layer_selector) {
-    #
-    #   mapboxgl_proxy("map") %>%
-    #     set_layout_property("school_districts", "visibility", "visible")
-    #
-    # } else {
-    #
-    #   mapboxgl_proxy("map") %>%
-    #     set_layout_property("school_districts", "visibility",  "none")
-    #
-    # }
+    if ("accountability" %in% input$layer_selector) {
+
+      mapboxgl_proxy("map") %>%
+        set_layout_property("accountability_tx", "visibility", "visible")
+
+    } else {
+
+      mapboxgl_proxy("map") %>%
+        set_layout_property("accountability_tx", "visibility",  "none")
+
+    }
 
     ### IDEA Students --------------------------------------------------------
     if ("idea_stus" %in% input$layer_selector) {
