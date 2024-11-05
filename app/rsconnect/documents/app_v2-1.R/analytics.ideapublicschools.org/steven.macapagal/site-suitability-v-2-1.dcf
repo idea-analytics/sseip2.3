@@ -1,0 +1,13 @@
+name: site-suitability-v-2-1
+title: Site-Suitability-v-2-1
+username: steven.macapagal
+account: steven.macapagal
+server: analytics.ideapublicschools.org
+hostUrl: https://analytics.ideapublicschools.org/__api__
+appId: 250
+bundleId: 10355
+url: https://analytics.ideapublicschools.org/content/b8158634-de61-4228-8ff7-3e852fd7f3f8/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: 01_Austin_Interactive_Map_Shiny.R|02_Austin_Interactive_Map_Shiny_new_structure.R|03b_app_structure_using_Austin_Interactive_Map (option 2).R|app.R|app_mapgl.R|app_minimal.R|app_new_structure.R|app_sandbox.R|app_testing.R|R&A Logo_Transparent.png|rda_to_sfarrrow.R|sf_accountability_fl_2024.feather|sf_acs_all_2022.feather|sf_children_by_age_group_block_group_dd_2022.feather|sf_children_by_age_group_tract_dd_2022.feather|sf_children_poverty_dd_2022.feather|sf_counties.rda|sf_dot_density_mvp.rda|sf_hh_children_under_18_dd_2022.feather|sf_household_income_dd_2022.feather|sf_isochrones_idea_mvp.rda|sf_mobility_dd_2022.feather|sf_school_districts.rda|sf_schools_idea_mvp.rda|sf_students_idea_2024.feather|sf_students_idea_mvp.rda|sf_students_in_poverty_dd_2022.feather|site-suitabiliyt-v2

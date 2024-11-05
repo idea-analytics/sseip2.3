@@ -809,6 +809,21 @@ st_as_sf_students <- function(.data, crs = "WGS84") {
 
 ## Pull data
 
+```{r pull_counties_states}
+sf_counties_2022 <- bind_rows(
+  tigris::counties("TX"),
+  tigris::counties("LA"),
+  tigris::counties("FL"),
+  tigris::counties("OH")
+) %>%
+  st_transform(crs = "WGS84")
+
+sf_states_2022 <- states() %>%
+  filter(STUSPS %in% c("TX", "LA", "FL", "OH")) %>%
+  st_transform(crs = "WGS84")
+```
+
+
 ```{r pull_data}
 # pulls current IDEA students, geocodes, and turns into sf
 sf_students_idea <- df_counties_all %>%
@@ -850,7 +865,8 @@ sf_isochrones_idea <- sf_schools_idea %>%
   } %>%
   purrr::list_rbind() %>%
   sf::st_as_sf() %>%
-  sf::st_set_crs("WGS84")
+  sf::st_set_crs("WGS84") %>%
+  st_intersection(sf_states_2022)
 ```
 
 ## Write to Feather
