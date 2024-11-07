@@ -286,24 +286,24 @@ ui <- page_navbar(
         ),
 
         #### drive times filter --------------------------------------------------
-        # conditionalPanel(
-        #   condition = "input.layer_selector.includes('drive_times')",
-        #   sliderInput("time_filter",
-        #               "Drive times filter",
-        #               min = 1,
-        #               max = 15,
-        #               value = c(1, 10))
-        # ),
-
         conditionalPanel(
           condition = "input.layer_selector.includes('drive_times')",
-          checkboxGroupInput(
-            "drive_time_controls",
-            label = "Select drive times",
-            choices = 1:15,
-            selected = 1:15
-          )
+          sliderInput("time_filter",
+                      "Drive times filter",
+                      min = 1,
+                      max = 15,
+                      value = c(1, 10))
         ),
+
+        # conditionalPanel(
+        #   condition = "input.layer_selector.includes('drive_times')",
+        #   checkboxGroupInput(
+        #     "drive_time_controls",
+        #     label = "Select drive times",
+        #     choices = 1:15,
+        #     selected = 1:15
+        #   )
+        # ),
 
         # conditionalPanel(
         #   condition = "input.layer_selector.includes('drive_times')",
@@ -402,7 +402,7 @@ ui <- page_navbar(
 
         # text
         tags$p(icon("rotate-right", lib = "font-awesome"),
-               "App last updated ", tags$b("November 5, 2024."),
+               "App last updated ", tags$b("November 7, 2024."),
                tags$br(), tags$br(),
                "Census data from 5-Year American Community Survey, 2017-2022.",
                tags$br(), tags$br(),
@@ -905,28 +905,28 @@ server <- function(input, output) {
   })
 
   ### drive time filter -------------------------------------------------------------
-  # observeEvent(input$time_filter, {
-  #
-  #   req(input$time_filter)
-  #   mapboxgl_proxy("map") %>%
-  #     set_filter("drive_time_isochrones",
-  #                list("all",
-  #                     list(">=", get_column("time"), input$time_filter[1]),
-  #                     list("<=", get_column("time"), input$time_filter[2]))
-  #
-  #     )
-  # })
+  observeEvent(input$time_filter, {
 
-  observeEvent(input$drive_time_controls, {
-
-    req(input$drive_time_controls)
+    req(input$time_filter)
     mapboxgl_proxy("map") %>%
-      set_filter(
-        "drive_time_isochrones",
-        list("in", "time", input$drive_time_controls)
-      )
+      set_filter("drive_time_isochrones",
+                 list("all",
+                      list(">=", get_column("time"), input$time_filter[1]),
+                      list("<=", get_column("time"), input$time_filter[2]))
 
+      )
   })
+
+  # observeEvent(input$drive_time_controls, {
+  #
+  #   req(input$drive_time_controls)
+  #   mapboxgl_proxy("map") %>%
+  #     set_filter(
+  #       "drive_time_isochrones",
+  #       list("in", "time", input$drive_time_controls)
+  #     )
+  #
+  # })
 
   ### IDEA schools filters -------------------------------------------------
   observeEvent(input$schools_selector, {
