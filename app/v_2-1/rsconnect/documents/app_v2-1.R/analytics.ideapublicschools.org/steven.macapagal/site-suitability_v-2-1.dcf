@@ -1,0 +1,13 @@
+name: site-suitability_v-2-1
+title: Site-Suitability_v-2-1
+username: steven.macapagal
+account: steven.macapagal
+server: analytics.ideapublicschools.org
+hostUrl: https://analytics.ideapublicschools.org/__api__
+appId: 251
+bundleId: 10383
+url: https://analytics.ideapublicschools.org/content/2416e0b4-24b2-4f77-8dbd-9f705c5aa45b/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: sf_accountability_fl_2024.feather
