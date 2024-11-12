@@ -10,7 +10,7 @@ library(mapgl)
 library(tidyverse)
 library(ideacolors)
 library(shinybusy)
-# library(protolite)
+library(capture)
 
 
 
@@ -127,6 +127,7 @@ regions <- sf_counties %>%
   dplyr::distinct() %>%
   arrange(region)
 
+date <- Sys.Date()
 
 theme_idea_light <- bs_theme(bootswatch = "yeti") %>%
   bs_theme_update(primary = "#002F6C")
@@ -214,6 +215,16 @@ ui <- page_navbar(
             "Satellite" = "satellite"
           ),
           selected = "frankfurt"
+        ),
+
+        tags$hr(),
+
+        ### Screenshot map ----
+
+        capture::capture(
+          selector = "#map",
+          filename = glue::glue("site-selection-map_{date}"),
+          bs_icon("camera-fill"), tags$b("Screenshot map")
         )
       ),
 
@@ -286,35 +297,30 @@ ui <- page_navbar(
         ),
 
         #### drive times filter --------------------------------------------------
-        # conditionalPanel(
-        #   condition = "input.layer_selector.includes('drive_times')",
-        #   sliderInput("time_filter",
-        #               "Drive times filter",
-        #               min = 1,
-        #               max = 15,
-        #               value = c(1, 10))
-        # ),
-
         conditionalPanel(
           condition = "input.layer_selector.includes('drive_times')",
-          checkboxGroupInput(
-            "drive_time_controls",
-            label = "Select drive times",
-            choices = 1:15,
-            selected = 1:15
-          )
+          sliderInput("time_filter",
+                      "Drive times filter",
+                      min = 1,
+                      max = 15,
+                      value = c(1, 10))
         ),
-
-        # conditionalPanel(
-        #   condition = "input.layer_selector.includes('drive_times')",
-        #   uiOutput("drive_time_controls")
-        # ),
 
         #### IDEA schools filter ------------------------------------------------
         conditionalPanel(
           condition = "input.layer_selector.includes('idea_stus') ||
                          input.layer_selector.includes('drive_times')",
-          uiOutput("schools_in_regions")
+          uiOutput("schools_in_regions"),
+          checkboxGroupInput("operations_filter",
+                             "Operations filter",
+                             choices = c("Proposed",
+                                         "Year 0",
+                                         "In Operation",
+                                         "Closed"),
+                             selected = c("Proposed",
+                                          "Year 0",
+                                          "In Operation",
+                                          "Closed"))
         ),
 
 
@@ -402,7 +408,7 @@ ui <- page_navbar(
 
         # text
         tags$p(icon("rotate-right", lib = "font-awesome"),
-               "App last updated ", tags$b("November 5, 2024."),
+               "App last updated ", tags$b("November 7, 2024."),
                tags$br(), tags$br(),
                "Census data from 5-Year American Community Survey, 2017-2022.",
                tags$br(), tags$br(),
@@ -457,16 +463,17 @@ server <- function(input, output) {
       mapboxgl(
         center = c(-97.661324953909, 30.3381543635444),
         zoom = 8.28974152189369,
-        style = rdeck::mapbox_gallery_frank()
+        style = rdeck::mapbox_gallery_frank(),
+        preserveDrawingBuffer = TRUE
       )
 
     ### add map controls ----
     initial_map <- initial_map %>%
-      # add_geocoder_control(
-      #   position = "top-left",
-      #   placeholder = "Search an address",
-      #   collapsed = TRUE
-      # ) %>%
+      add_geocoder_control(
+        position = "top-left",
+        placeholder = "Search an address",
+        collapsed = TRUE
+      ) %>%
       add_navigation_control(
         position = "top-left",
         visualize_pitch = TRUE
@@ -683,6 +690,15 @@ server <- function(input, output) {
 
   })
 
+  ## search ----
+
+  observeEvent(input$map_geocoder, {
+
+    result <- input$map_geocoder$result
+
+    output$result <- renderPrint(result)
+
+  })
 
   ## search bar observer ----
   # observe({
@@ -905,28 +921,46 @@ server <- function(input, output) {
   })
 
   ### drive time filter -------------------------------------------------------------
+  # toListen <- reactive({
+  #   list(input$time_filter,
+  #        input$schools_selector)
+  # })
+
+  observeEvent(input$time_filter, {
+
+    req(input$time_filter)
+    # req(input$schools_selector)
+    mapboxgl_proxy("map") %>%
+      # set_filter("drive_time_isochrones",
+      #            c("in", "SchoolShortName", input$schools_selector)) %>%
+      set_filter("drive_time_isochrones",
+                 list("all",
+                      list(">=", get_column("time"), input$time_filter[1]),
+                      list("<=", get_column("time"), input$time_filter[2]))
+
+      )
+  })
+
+  ### drive time filter -------------------------------------------------------------
   # observeEvent(input$time_filter, {
   #
   #   req(input$time_filter)
   #   mapboxgl_proxy("map") %>%
   #     set_filter("drive_time_isochrones",
-  #                list("all",
-  #                     list(">=", get_column("time"), input$time_filter[1]),
-  #                     list("<=", get_column("time"), input$time_filter[2]))
+  #                c("in", "SchoolShortName", input$schools_selector))
   #
-  #     )
   # })
 
-  observeEvent(input$drive_time_controls, {
-
-    req(input$drive_time_controls)
-    mapboxgl_proxy("map") %>%
-      set_filter(
-        "drive_time_isochrones",
-        list("in", "time", input$drive_time_controls)
-      )
-
-  })
+  # observeEvent(input$drive_time_controls, {
+  #
+  #   req(input$drive_time_controls)
+  #   mapboxgl_proxy("map") %>%
+  #     set_filter(
+  #       "drive_time_isochrones",
+  #       list("in", "time", input$drive_time_controls)
+  #     )
+  #
+  # })
 
   ### IDEA schools filters -------------------------------------------------
   observeEvent(input$schools_selector, {
@@ -936,6 +970,19 @@ server <- function(input, output) {
       set_filter(
         "students-layer",
         c("in", "school_short_name", input$schools_selector)
+      )
+
+  })
+
+
+  ### operations filters -------------------------------------------------
+  observeEvent(input$operations_filter, {
+
+    req(input$operations_filter)
+    mapboxgl_proxy("map") %>%
+      set_filter(
+        "schools",
+        c("in", "SiteStatus", input$operations_filter)
       )
 
   })
@@ -995,8 +1042,7 @@ server <- function(input, output) {
 
     req(input$region_selector)
     schools <- sf_idea_schools_mvp %>%
-      filter(Region   == input$region_selector,
-             SiteStatus == "In Operation") %>%
+      filter(Region == input$region_selector) %>%
       pull(SchoolShortName)
     checkboxGroupInput(
       "schools_selector",
@@ -1008,11 +1054,15 @@ server <- function(input, output) {
   })
 
   ### drive time input controls ---------------------------------------------
-  # output$drive_time_controls <- renderUI({
+  # output$time_filter <- renderUI({
   #
-  #   req(input$drive_times)
+  #   req(input$region_selector)
   #   times <- 1:15
-  #
+  #   schools <- sf_idea_schools_mvp %>%
+  #     filter(Region == input$region_selector) %>%
+  #     pull(SchoolShortName)
+  #   isochrones <- sf_isochrones_idea_mvp %>%
+  #     filter(Region == input$region_selector)
   #   checkboxGroupInput(
   #     "time_selector",
   #     label = "Select drive times",

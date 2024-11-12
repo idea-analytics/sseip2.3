@@ -5,8 +5,8 @@ account: steven.macapagal
 server: analytics.ideapublicschools.org
 hostUrl: https://analytics.ideapublicschools.org/__api__
 appId: 251
-bundleId: 10383
-url: https://analytics.ideapublicschools.org/content/2416e0b4-24b2-4f77-8dbd-9f705c5aa45b/
+bundleId: 10490
+url: https://analytics.ideapublicschools.org/site-suitability-v-2-1/
 version: 1
 asMultiple: FALSE
 asStatic: FALSE
