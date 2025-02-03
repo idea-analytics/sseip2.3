@@ -189,10 +189,6 @@ ui <- page_navbar(
           selected = "Austin"
         ),
 
-        tags$br(),
-        # mapboxapi::mapboxGeocoderInput("search_box",
-        #                                placeholder = "Search for an address"),
-
         tags$hr(),
 
         ### Map type selector ----------------------------------------------------
@@ -446,8 +442,43 @@ ui <- page_navbar(
   ),
 
   nav_panel(
-    title = "How to use this app"
-  )
+    title = "How to use this app",
+
+    navset_card_underline(
+
+      nav_panel(
+        title = "Common tasks"
+      ),
+
+      nav_panel(
+        title = "Site suitability index",
+
+        layout_column_wrap(
+          width = 1/2,
+
+          card(
+            card_header("Building the index"),
+
+            card_body(
+              p("The site suitability index is composed of five variables:"),
+              p("Number of children"),
+              p("Number of students in poverty"),
+              p("Number of low income households (< $50,000)"),
+              p("Number of low-quality schools"),
+              p("Number of high-quality schools"),
+            )
+
+          ),
+
+          card(
+            title = "Interpreting the index"
+          )
+        )
+      )
+    )
+
+  ),
+
 )
 
 # Server ----------------------
