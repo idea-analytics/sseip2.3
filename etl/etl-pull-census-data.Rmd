@@ -28,6 +28,8 @@ library(tidycensus)
 library(sf)
 library(sfarrow)
 library(pins)
+
+options(tigris_use_cache = TRUE)
 ```
 
 ### Define tables, parameters, functions
@@ -90,7 +92,8 @@ df_counties_all <- bind_rows(
 ```{r define_parameters}
 # census-related parameters ----
 CENSUS_API_KEY <- Sys.getenv("CENSUS_API_KEY")
-CENSUS_YEAR <- 2022
+CENSUS_YEAR <- 2023
+TIGRIS_YEAR <- 2022
 ```
 
 
@@ -122,8 +125,8 @@ st_mutate_acs <- function(.data,
     GEOID,
     variable,
     estimate,
-    moe,
-    geometry
+    moe
+    # geometry
   )
   
 }
@@ -162,12 +165,12 @@ get_sf_hhs_under_50000 <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = TRUE,
+      geometry = FALSE,
       year = year
     ) %>%
-    st_transform(crs = "WGS84") %>%
+    # st_transform(crs = "WGS84") %>%
     st_mutate_acs(
-      table_name = "HOUSEHOLD INCOME IN THE PAST 12 MONTHS (IN 2021 INFLATION-ADJUSTED DOLLARS)",
+      table_name = "HOUSEHOLD INCOME IN THE PAST 12 MONTHS (IN 2023 INFLATION-ADJUSTED DOLLARS)",
       table_short_name = "Household income",
       table_number = "B19001",
       geography = "block group"
@@ -204,10 +207,10 @@ get_sf_students_poverty <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = TRUE,
+      geometry = FALSE,
       year = year
     ) %>%
-    st_transform(crs = "WGS84") %>%
+    # st_transform(crs = "WGS84") %>%
     st_mutate_acs(
       table_name = "POVERTY STATUS IN THE PAST 12 MONTHS BY SCHOOL ENROLLMENT BY LEVEL OF SCHOOL FOR THE POPULATION 3 YEARS AND OVER",
       table_short_name = "Students in poverty",
@@ -239,10 +242,10 @@ get_sf_hhs_children_under_18 <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = TRUE,
+      geometry = FALSE,
       year = year
     ) %>%
-    st_transform(crs = "WGS84") %>%
+    # st_transform(crs = "WGS84") %>%
     st_mutate_acs(
       table_name = "HOUSEHOLDS BY PRESENCE OF PEOPLE UNDER 18 YEARS BY HOUSEHOLD TYPE",
       table_short_name = "Households with children under 18",
@@ -274,10 +277,10 @@ get_sf_hhs_children_snap <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = TRUE,
+      geometry = FALSE,
       year = year
     ) %>%
-    st_transform(crs = "WGS84") %>%
+    # st_transform(crs = "WGS84") %>%
     st_mutate_acs(
       table_name = "RECEIPT OF FOOD STAMPS/SNAP IN THE PAST 12 MONTHS BY PRESENCE OF CHILDREN UNDER 18 YEARS BY HOUSEHOLD TYPE FOR HOUSEHOLDS",
       table_short_name = "SNAP",
@@ -314,10 +317,10 @@ get_sf_mobility <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = TRUE,
+      geometry = FALSE,
       year = year
     ) %>%
-    st_transform(crs = "WGS84") %>%
+    # st_transform(crs = "WGS84") %>%
     st_mutate_acs(
       table_name = "GEOGRAPHICAL MOBILITY IN THE PAST YEAR BY AGE FOR CURRENT RESIDENCE IN THE UNITED STATES",
       table_short_name = "Mobility",
@@ -355,10 +358,10 @@ get_sf_children <- function(state = NULL,
         ),
         state = state,
         county = county,
-        geometry = TRUE,
+        geometry = FALSE,
         year = year
       ) %>%
-      st_transform(crs = "WGS84") %>%
+      # st_transform(crs = "WGS84") %>%
       st_mutate_acs(
         table_name = "POPULATION UNDER 18 YEARS BY AGE",
         table_short_name = "Children by age group",
@@ -384,10 +387,10 @@ get_sf_children <- function(state = NULL,
         ),
         state = state, 
         county = county, 
-        geometry = TRUE,
+        geometry = FALSE,
         year = year
       ) %>%
-      st_transform(crs = "WGS84") %>%
+      # st_transform(crs = "WGS84") %>%
       st_mutate_acs(
         table_name = "SEX BY AGE",
         table_short_name = "Children by age group and sex",
@@ -425,10 +428,10 @@ get_sf_children_poverty <- function(state = NULL,
         ),
         state = state,
         county = county,
-        geometry = TRUE,
+        geometry = FALSE,
         year = year
       ) %>%
-      st_transform(crs = "WGS84") %>%
+      # st_transform(crs = "WGS84") %>%
       st_mutate_acs(
         table_name = "RATIO OF INCOME TO POVERTY LEVEL IN THE PAST 12 MONTHS BY NATIVITY OF CHILDREN UNDER 18 YEARS IN FAMILIES AND SUBFAMILIES BY LIVING ARRANGEMENTS AND NATIVITY OF PARENTS",
         table_short_name = "Children in poverty",
@@ -440,11 +443,41 @@ get_sf_children_poverty <- function(state = NULL,
   
   
 }
+
+get_tracts <- function(state = NULL,
+                       county = NULL,
+                       year = NULL) {
+  
+  sf_tracts <- tigris::tracts(
+    state = state,
+    county = county,
+    year = year
+  )
+  
+  return(sf_tracts)
+  
+}
+
+get_block_groups <- function(state = NULL,
+                             county = NULL,
+                             year = NULL) {
+  
+  sf_block_groups <- tigris::block_groups(
+    state = state,
+    county = county,
+    year = year
+  )
+  
+  return(sf_block_groups)
+  
+}
 ```
 
 ## Pull data
 
-```{r pull_data}
+### Pull most recent ACS data (2023) via Census API
+
+```{r pull_acs_data}
 list_sf_children_poverty <- df_counties_all %>%
   select(-region) %>%
   mutate(year = CENSUS_YEAR,
@@ -499,6 +532,88 @@ list_sf_students_poverty <- df_counties_all %>%
 ```
 
 
+### Pull most recent shapefiles from Tigris (2022) via API
+
+```{r pull_shapefiles_api}
+# sf_counties <- bind_rows(
+#   tigris::counties("TX", year = TIGRIS_YEAR),
+#   tigris::counties("LA", year = TIGRIS_YEAR),
+#   tigris::counties("FL", year = TIGRIS_YEAR),
+#   tigris::counties("OH", year = TIGRIS_YEAR)
+# )
+# 
+# sf_tracts <- df_counties_all %>%
+#   select(-region) %>%
+#   mutate(year = TIGRIS_YEAR) %>%
+#   pmap(get_tracts) %>%
+#   list_rbind() %>%
+#   st_as_sf() %>%
+#   st_transform(crs = "WGS84")
+# 
+# sf_block_groups <- df_counties_all %>%
+#   select(-region) %>%
+#   mutate(year = TIGRIS_YEAR) %>%
+#   pmap(get_block_groups) %>%
+#   list_rbind() %>%
+#   st_as_sf() %>%
+#   st_transform(crs = "WGS84")
+```
+
+
+### Pull shapefiles from previously pinned data
+
+```{r pull_shapefiles_pins}
+board <- board_connect(auth = "envvar")
+
+sf_counties <- pin_read(board, "steven.macapagal/county_shapefiles") %>%
+  select(GEOID_CO = GEOID,
+         STATE_NAME,
+         STUSPS,
+         NAMELSADCO = NAMELSAD,
+         NAMELSADCOSHORT = NAME,
+         geometry) %>%
+  left_join(df_counties_all %>%
+              select(-state),
+            by = c("NAMELSADCO" = "county"))
+
+sf_tracts <- pin_read(board, "steven.macapagal/tract_shapefiles") %>%
+  select(GEOID_TR = GEOID,
+         STATE_NAME,
+         STUSPS,
+         NAMELSADCO,
+         NAMELSADTR = NAMELSAD,
+         NAMELSADTRSHORT = NAME,
+         geometry) %>%
+  left_join(df_counties_all %>%
+              select(-state),
+            by = c("NAMELSADCO" = "county"))
+
+sf_block_groups <- pin_read(board, "steven.macapagal/block_group_shapefiles") %>%
+  select(GEOID_BG = GEOID,
+         NAMELSADBG = NAMELSAD,
+         NAMELSADBGSHORT = NAME,
+         geometry) %>%
+  mutate(GEOID_CO = str_sub(GEOID_BG, 1, 5),
+         GEOID_TR = str_sub(GEOID_BG, 1, 11)) %>%
+  left_join(sf_counties %>%
+              as.data.frame() %>%
+              select(GEOID_CO,
+                     STATE_NAME,
+                     STUSPS,
+                     NAMELSADCO,
+                     NAMELSADCOSHORT,
+                     region),
+            by = c("GEOID_CO" = "GEOID_CO")) %>%
+  left_join(sf_tracts %>%
+              as.data.frame() %>%
+              select(GEOID_TR,
+                     NAMELSADTR,
+                     NAMELSADTRSHORT),
+            by = c("GEOID_TR" = "GEOID_TR"))
+
+sf_school_districts <- pin_read(board, "steven.macapagal/school_district_shapefiles")
+```
+
 ## Append all data
 
 All ACS data is stored with these columns:
@@ -533,8 +648,8 @@ sf_acs_all <-
               select(-state),
             by = c("county" = "county")) %>%
   relocate(region,
-           .after = state) %>%
-  st_as_sf() 
+           .after = state) # %>%
+  # st_as_sf() 
 
 
 ```
@@ -545,7 +660,8 @@ sf_acs_all <-
 working_dir <- here::here("app")
 
 # Save as arrow files
-st_write_feather(sf_acs_all, glue::glue("{working_dir}/sf_acs_all_2022.feather"))
+# st_write_feather(sf_acs_all, glue::glue("{working_dir}/sf_acs_all_2022.feather"))
+arrow::write_feather(sf_acs_all, glue::glue("{working_dir}/sf_acs_all_2023.feather"))
 ```
 
 ## Pin data

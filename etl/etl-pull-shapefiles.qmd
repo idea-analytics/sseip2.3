@@ -1,0 +1,189 @@
+---
+title: "ETL Pull Shapefiles"
+author: "Steven Macapagal"
+format: html
+---
+
+## Setup
+
+- Last modified: 2025-02-10
+- Last deployed (development): 2025-02-10
+- Last deployed (production): 
+- Inputs:
+- Outputs: steven.macapagal/tigris_states, steven.macapagal/tigris_counties, steven.macapagal/tigris_tracts, steven.macapagal/tigris_block_groups, steven.macapagal/tigris_blocks, steven.macapagal/tigris_school_districts
+
+
+### Load libraries
+
+```{r setup_libraries}
+library(tidyverse)
+library(tigris)
+library(pins)
+```
+
+
+### Define tables, parameters, functions
+
+```{r define_tables}
+df_counties_tx <- tribble(
+  ~ state, ~ region, ~ county,
+  
+  "TX", "Austin", "Travis County",
+  "TX", "Austin", "Hays County",
+  "TX", "Austin", "Bastrop County",
+  "TX", "Austin", "Williamson County",
+  "TX", "Austin", "Caldwell County",
+  
+  "TX", "Coastal Bend", "Nueces County",
+
+  "TX", "El Paso", "El Paso County",
+  
+  "TX", "Greater Houston Area", "Harris County",
+  "TX", "Greater Houston Area", "Montgomery County",
+
+  "TX", "Permian Basin", "Midland County",
+  "TX", "Permian Basin", "Ector County",
+  
+  "TX", "Rio Grande Valley", "Cameron County",
+  "TX", "Rio Grande Valley", "Hidalgo County",
+  "TX", "Rio Grande Valley", "Starr County",
+  
+  "TX", "San Antonio", "Bexar County",
+  "TX", "San Antonio", "Comal County",
+  
+  "TX", "Tarrant County", "Tarrant County",
+  "TX", "Tarrant County", "Parker County",
+  "TX", "Tarrant County", "Burleson County",
+  "TX", "Tarrant County", "Dallas County"
+)
+
+df_counties_ips <- tribble(
+  ~ state, ~ region, ~ county,
+  
+  "OH", "Cincinnati", "Hamilton County",
+  
+  "FL", "Jacksonville", "Duval County",
+  "FL", "Tampa", "Hillsborough County",
+  "FL", "Tampa", "Polk County",
+  "FL", "Orlando", "Orange County",
+  
+  "LA", "Southern Louisiana", "East Baton Rouge Parish",
+  "LA", "Southern Louisiana", "Orleans Parish"
+)
+
+df_counties_all <- bind_rows(
+  df_counties_tx,
+  df_counties_ips
+)
+
+```
+
+
+```{r define_parameters}
+# census-related parameters ----
+CENSUS_API_KEY <- Sys.getenv("CENSUS_API_KEY")
+CENSUS_YEAR <- 2023
+TIGRIS_YEAR <- 2022
+```
+
+
+
+## Pull shapefile data from {tigris}
+
+### Pull state shapefiles
+
+```{r get_states}
+sf_states <- states()
+```
+
+
+### Pull county shapefiles
+
+```{r get_counties}
+sf_counties <- bind_rows(
+  counties("TX"),
+  counties("LA"),
+  counties("OH"),
+  counties("FL")
+)
+```
+
+
+### Pull tract shapefiles
+
+```{r get_tracts}
+sf_tracts <- bind_rows(
+  tracts("TX"),
+  tracts("LA"),
+  tracts("OH"),
+  tracts("FL"),
+)
+```
+
+
+### Pull block group shapefiles
+
+```{r get_block_groups}
+sf_block_groups <- bind_rows(
+  block_groups("TX"),
+  block_groups("LA"),
+  block_groups("OH"),
+  block_groups("FL")
+)
+```
+
+
+### Pull block shapefiles
+
+```{r get_blocks}
+sf_blocks <- bind_rows(
+  blocks("TX"),
+  blocks("LA"),
+  blocks("OH"),
+  blocks("FL")
+)
+```
+
+
+### Pull school district shapefiles
+
+```{r get_school_districts}
+sf_school_districts <- bind_rows(
+  school_districts("TX"),
+  school_districts("LA"),
+  school_districts("OH"),
+  school_districts("FL")
+)
+```
+
+
+## Write data
+
+### Write to disk as geo-parquet partitioned by state and county
+
+```{r write_to_geoparquet}
+path_write <- "C:/Users/steven.macapagal/Shapefiles/"
+
+sf_counties %>%
+  group_by(STATEFP) %>% # group by standard state 
+  sfarrow::write_sf_dataset(path = paste0(path_write, "county"),
+                            format = "parquet")
+```
+
+
+
+### Write to pins
+
+```{r pin_data}
+# attach to pins board ----
+board_posit <- board_connect()
+
+board_posit %>%
+  pin_write(
+    sf_states,
+    name = "tigris_states",
+    description = "TIGRIS shapefiles for states",
+    type = "qs"
+  )
+```
+
