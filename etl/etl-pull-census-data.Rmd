@@ -7,7 +7,7 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2024-10-10
+- Last modified: 2024-05-05
 - Last deployed (development): 2023-10-30
 - Last deployed (production): 
 - Inputs:
@@ -40,16 +40,16 @@ df_counties_tx <- tribble(
   
   "TX", "Austin", "Travis County",
   "TX", "Austin", "Hays County",
-  "TX", "Austin", "Bastrop County",
+  # "TX", "Austin", "Bastrop County",
   "TX", "Austin", "Williamson County",
-  "TX", "Austin", "Caldwell County",
+  # "TX", "Austin", "Caldwell County",
   
   "TX", "Coastal Bend", "Nueces County",
 
   "TX", "El Paso", "El Paso County",
   
   "TX", "Greater Houston Area", "Harris County",
-  "TX", "Greater Houston Area", "Montgomery County",
+  # "TX", "Greater Houston Area", "Montgomery County",
 
   "TX", "Permian Basin", "Midland County",
   "TX", "Permian Basin", "Ector County",
@@ -59,11 +59,11 @@ df_counties_tx <- tribble(
   "TX", "Rio Grande Valley", "Starr County",
   
   "TX", "San Antonio", "Bexar County",
-  "TX", "San Antonio", "Comal County",
+  # "TX", "San Antonio", "Comal County",
   
   "TX", "Tarrant County", "Tarrant County",
-  "TX", "Tarrant County", "Parker County",
-  "TX", "Tarrant County", "Burleson County",
+  # "TX", "Tarrant County", "Parker County",
+  # "TX", "Tarrant County", "Burleson County",
   "TX", "Tarrant County", "Dallas County"
 )
 
@@ -165,7 +165,7 @@ get_sf_hhs_under_50000 <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = FALSE,
+      geometry = TRUE,
       year = year
     ) %>%
     # st_transform(crs = "WGS84") %>%
@@ -207,7 +207,7 @@ get_sf_students_poverty <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = FALSE,
+      geometry = TRUE,
       year = year
     ) %>%
     # st_transform(crs = "WGS84") %>%
@@ -242,7 +242,7 @@ get_sf_hhs_children_under_18 <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = FALSE,
+      geometry = TRUE,
       year = year
     ) %>%
     # st_transform(crs = "WGS84") %>%
@@ -277,7 +277,7 @@ get_sf_hhs_children_snap <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = FALSE,
+      geometry = TRUE,
       year = year
     ) %>%
     # st_transform(crs = "WGS84") %>%
@@ -317,7 +317,7 @@ get_sf_mobility <- function(state = NULL,
       ),
       state = state,
       county = county,
-      geometry = FALSE,
+      geometry = TRUE,
       year = year
     ) %>%
     # st_transform(crs = "WGS84") %>%
@@ -358,7 +358,7 @@ get_sf_children <- function(state = NULL,
         ),
         state = state,
         county = county,
-        geometry = FALSE,
+        geometry = TRUE,
         year = year
       ) %>%
       # st_transform(crs = "WGS84") %>%
@@ -387,7 +387,7 @@ get_sf_children <- function(state = NULL,
         ),
         state = state, 
         county = county, 
-        geometry = FALSE,
+        geometry = TRUE,
         year = year
       ) %>%
       # st_transform(crs = "WGS84") %>%
@@ -428,7 +428,7 @@ get_sf_children_poverty <- function(state = NULL,
         ),
         state = state,
         county = county,
-        geometry = FALSE,
+        geometry = TRUE,
         year = year
       ) %>%
       # st_transform(crs = "WGS84") %>%
@@ -631,7 +631,9 @@ All ACS data is stored with these columns:
 ~geometry: (if available) MULTIPOLYGON
 
 ```{r append_data}
-sf_acs_all <-
+df_acs_vars <- read_csv(here::here("etl/acs_table_lookup.csv"))
+
+sf_acs_all <- # list_sf_students_poverty %>%
   list(
     list_sf_children_poverty,
     list_sf_children_tract,
@@ -647,11 +649,25 @@ sf_acs_all <-
   left_join(df_counties_all %>%
               select(-state),
             by = c("county" = "county")) %>%
+  left_join(df_acs_vars %>%
+              select(table_number,
+                     variable,
+                     table_variable_number),
+            by = c("table_number" = "table_number",
+                   "variable" = "variable")) %>%
+  mutate(year = CENSUS_YEAR) %>%
   relocate(region,
-           .after = state) # %>%
-  # st_as_sf() 
+           .after = state) %>%
+  relocate(table_variable_number,
+           .after = GEOID) %>%
+  relocate(year,
+           .after = table_number) %>%
+  st_as_sf() %>%
+  st_transform("WGS84")
 
-
+df_acs_all <- sf_acs_all %>%
+  as.data.frame() %>%
+  select(-geometry)
 ```
 
 ## Write to Feather
@@ -661,7 +677,7 @@ working_dir <- here::here("app")
 
 # Save as arrow files
 # st_write_feather(sf_acs_all, glue::glue("{working_dir}/sf_acs_all_2022.feather"))
-arrow::write_feather(sf_acs_all, glue::glue("{working_dir}/sf_acs_all_2023.feather"))
+sfarrow::st_write_feather(sf_acs_all, here::here("app/sf_students_poverty_2023.feather"))
 ```
 
 ## Pin data

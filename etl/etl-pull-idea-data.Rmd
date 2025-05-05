@@ -7,7 +7,7 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2024-10-10
+- Last modified: 2025-05-05
 - Last deployed (development): 2023-11-11
 - Last deployed (production):
 - Inputs:
@@ -220,13 +220,16 @@ st_as_sf_schools <- function(.data, crs = "WGS84") {
 
 get_sf_isochrone <- function(.data, profile = NULL,
                              time = NULL,
+                             depart_at = "2025-04-07T08:00",
                              school = NULL, ...) {
   
   if (!is.null(school)) {
     
     sf_isochrone <- mapboxapi::mb_isochrone(.data, 
                                             profile = profile, 
-                                            time = time, ...) %>%
+                                            time = time, 
+                                            depart_at = depart_at,
+                                            ...) %>%
       dplyr::bind_cols(tibble::as_tibble(.data) %>% 
                   dplyr::select(-geometry)) %>%
       dplyr::filter(school_short_name == school) %>%
@@ -236,7 +239,9 @@ get_sf_isochrone <- function(.data, profile = NULL,
     
     sf_isochrone <- mapboxapi::mb_isochrone(.data, 
                                             profile = profile, 
-                                            time = time, ...) %>%
+                                            time = time, 
+                                            depart_at = depart_at,
+                                            ...) %>%
       dplyr::bind_cols(tibble::as_tibble(.data) %>% 
                   dplyr::select(-geometry)) %>%
       sf::st_set_crs("WGS84")
@@ -270,6 +275,7 @@ get_geocoded_students <- function(region = NULL) {
     dplyr::select(StudentNumber,
            Grade = GradeLevelID,
            ECDFlag,
+           EnrollmentStatus,
            SchoolNumber, 
            PhysicalStreet, 
            PhysicalCity, 
