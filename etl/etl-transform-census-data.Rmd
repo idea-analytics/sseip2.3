@@ -7,7 +7,7 @@ output: html_document
 
 ## Setup
 
-- Last modified: 2024-10-10
+- Last modified: 2025-05-05
 - Last deployed (development): 2023-11-11
 - Last deployed (production): 
 - Inputs: aline.orr/acs_data
@@ -40,8 +40,8 @@ sf_acs <- pin_read(board, "aline.orr/acs_data") # read this pin
 ```
 
 ```{r}
-working_dir <- here::here("app")
-sf_acs <- st_read_feather(glue::glue("{working_dir}/sf_acs_all_2022.feather"))
+# working_dir <- here::here("app")
+sf_acs <- st_read_feather(here::here("data/sf_acs_all_2023.feather"))
 ```
 
 
@@ -51,16 +51,16 @@ df_counties_tx <- tribble(
   
   "TX", "Austin", "Travis County",
   "TX", "Austin", "Hays County",
-  "TX", "Austin", "Bastrop County",
+  # "TX", "Austin", "Bastrop County",
   "TX", "Austin", "Williamson County",
-  "TX", "Austin", "Caldwell County",
+  # "TX", "Austin", "Caldwell County",
   
   "TX", "Coastal Bend", "Nueces County",
 
   "TX", "El Paso", "El Paso County",
   
   "TX", "Greater Houston Area", "Harris County",
-  "TX", "Greater Houston Area", "Montgomery County",
+  # "TX", "Greater Houston Area", "Montgomery County",
 
   "TX", "Permian Basin", "Midland County",
   "TX", "Permian Basin", "Ector County",
@@ -70,11 +70,11 @@ df_counties_tx <- tribble(
   "TX", "Rio Grande Valley", "Starr County",
   
   "TX", "San Antonio", "Bexar County",
-  "TX", "San Antonio", "Comal County",
+  # "TX", "San Antonio", "Comal County",
   
   "TX", "Tarrant County", "Tarrant County",
-  "TX", "Tarrant County", "Parker County",
-  "TX", "Tarrant County", "Burleson County",
+  # "TX", "Tarrant County", "Parker County",
+  # "TX", "Tarrant County", "Burleson County",
   "TX", "Tarrant County", "Dallas County"
 )
 
@@ -104,7 +104,22 @@ df_counties_all <- bind_rows(
 # children in poverty ----
 # time: 1452.64 sec
 
-sf_children_in_poverty <- sf_acs_all %>%
+# sf_children_in_poverty <- data.frame(
+#   table_name = character(),
+#   table_short_name = character(),
+#   table_number = character(),
+#   state = character(),
+#   region = character(),
+#   county = character(),
+#   geography = character(),
+#   GEOID = character(),
+#   variable = character(),
+#   estimate = double(),
+#   moe = double(),
+#   geometry = list()
+# )
+
+sf_children_in_poverty <- sf_acs_all %>% # filter(county %in% df_counties_tx$county) %>%
   
   # get appropriate table rows
   filter(table_short_name == "Children in poverty") %>%
@@ -116,14 +131,15 @@ sf_children_in_poverty <- sf_acs_all %>%
     values_per_dot = 20
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
 
-# st_write_feather(sf_children_in_poverty, glue::glue("{working_dir}/sf_children_poverty_dd_2022.feather"))
+
+# st_write_feather(sf_children_in_poverty, glue::glue("{working_dir}/sf_children_poverty_dd_2023.feather"))
 ```
 
 ```{r}
 # children by age group, block group ----
 # time: 10300.86 sec
 
-sf_children_by_age_group_block_group <- sf_acs %>%
+sf_children_by_age_group_block_group_tx <- sf_acs %>% filter(county %in% df_counties_tx$county) %>%
   
   # get appropriate table rows
   filter(
@@ -155,8 +171,11 @@ sf_children_by_age_group_block_group <- sf_acs %>%
     values_per_dot = 20
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
 
-
-# st_write_feather(sf_children_by_age_group_block_group, glue::glue("{working_dir}/sf_children_by_age_group_block_group_dd_2022.feather"))
+sf_children_by_age_group_block_group <- bind_rows(
+  sf_children_by_age_group_block_group_tx,
+  sf_children_by_age_group_block_group_ips
+)
+# st_write_feather(sf_children_by_age_group_block_group, glue::glue("{working_dir}/sf_children_by_age_group_block_group_dd_2023.feather"))
 ```
 
 
@@ -178,7 +197,7 @@ sf_children_by_age_group_tract <- sf_acs %>%
     values_per_dot = 20
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
 
-# st_write_feather(sf_children_by_age_group_tract, glue::glue("{working_dir}/sf_children_by_age_group_tract_dd_2022.feather"))
+# st_write_feather(sf_children_by_age_group_tract, glue::glue("{working_dir}/sf_children_by_age_group_tract_dd_2023.feather"))
 ```
 
 
@@ -360,7 +379,7 @@ sf_household_income <- bind_rows(
 )
 
 
-# st_write_feather(sf_household_income, glue::glue("{working_dir}/sf_household_income_dd_2022.feather"))
+st_write_feather(sf_household_income, glue::glue("{working_dir}/sf_household_income_dd_2023.feather"))
 ```
 
 
@@ -452,7 +471,7 @@ sf_students_in_poverty <- bind_rows(
 )
 
 
-# st_write_feather(sf_students_in_poverty, glue::glue("{working_dir}/sf_students_in_poverty_dd_2022.feather"))
+st_write_feather(sf_students_in_poverty, glue::glue("{working_dir}/sf_students_in_poverty_dd_2023.feather"))
 ```
 
 
@@ -473,7 +492,7 @@ sf_hh_children_under_18 <- sf_acs %>%
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
 
 
-# st_write_feather(sf_hh_children_under_18, glue::glue("{working_dir}/sf_hh_children_under_18_dd_2022.feather"))
+# st_write_feather(sf_hh_children_under_18, glue::glue("{working_dir}/sf_hh_children_under_18_dd_2023.feather"))
 ```
 
 ```{r}
@@ -510,7 +529,7 @@ sf_mobility <- sf_acs %>%
   ) # convert MULTIPOLYGON to 20:1 POINT geometry
 
 
-# st_write_feather(sf_mobility, glue::glue("{working_dir}/sf_mobility_dd_2022.feather"))
+# st_write_feather(sf_mobility, glue::glue("{working_dir}/sf_mobility_dd_2023.feather"))
 ```
 
 
