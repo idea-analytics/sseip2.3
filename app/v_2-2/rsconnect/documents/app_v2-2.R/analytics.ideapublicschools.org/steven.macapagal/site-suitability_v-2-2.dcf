@@ -1,0 +1,12 @@
+name: site-suitability_v-2-2
+title: Site-Suitability_v-2-2
+username: steven.macapagal
+account: steven.macapagal
+server: analytics.ideapublicschools.org
+hostUrl: https://analytics.ideapublicschools.org/__api__
+appId: 331
+bundleId: 12422
+url: https://analytics.ideapublicschools.org/content/4b7aee97-fa98-4ae2-b651-1abf4d2fc26e/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
