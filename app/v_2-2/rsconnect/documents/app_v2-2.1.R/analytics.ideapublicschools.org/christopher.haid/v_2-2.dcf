@@ -1,0 +1,14 @@
+name: v_2-2
+title: v_2-2
+username: christopher.haid
+account: christopher.haid
+server: analytics.ideapublicschools.org
+envVars: MAPBOX_PUBLIC_TOKEN
+hostUrl: https://analytics.ideapublicschools.org/__api__
+appId: 341
+bundleId: 13548
+url: https://analytics.ideapublicschools.org/content/863f335b-a03e-4110-bf45-24ded7d1a96c/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app_v2-2.R|counties_2023.parquet|idea_isochrones_2025-05-04.parquet|idea_schools_2025-05-04.parquet|school_districts_2023.parquet|sf_accountability_fl_2024.parquet|sf_accountability_la_2024.parquet|sf_accountability_oh_schools_2024.parquet|sf_accountability_tx_schools_2023.parquet|sf_index_2025-05-06.parquet|states_2021.parquet
