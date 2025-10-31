@@ -169,7 +169,7 @@ ui <- page_navbar(
 
   ## Sidebar -----------------------------------------------------------------
 
-  sidebar = sidebar(
+  sidebar = sidebar(open = "closed",
 
     accordion(
 
@@ -622,13 +622,13 @@ server <- function(input, output) {
   output$map_kriged <- renderMapboxgl({
     kriged_map <-       mapboxgl(
       center = c(-97.661324953909, 30.3381543635444),
-      zoom = 8.28974152189369,
+      zoom = 9,
       style =mapbox_style("light"),
       preserveDrawingBuffer = FALSE
     ) %>%
 
       add_vector_source(
-        url = "mapbox://christopher-haid.ssi2-layers",
+        url = "mapbox://christopher-haid.ssi-layers",
         id = "ssi2_layer"
       ) %>%
       add_fill_layer(
@@ -646,7 +646,7 @@ server <- function(input, output) {
         hover_options = list(
           fill_color = "yellow"#,
           #fill_opacity = .8
-        ), visibility = "none",
+        ), visibility = "visible",
       ) %>%
 
       add_fill_layer(
@@ -664,7 +664,7 @@ server <- function(input, output) {
         hover_options = list(
           fill_color = "yellow"#,
           #fill_opacity = .8
-        ), visibility = "none"
+        ), visibility = "visible"
       ) %>%
 
       add_fill_layer(
@@ -709,7 +709,7 @@ server <- function(input, output) {
           fill_color = "yellow"
           #fill_opacity = .8
         ),
-        visibility = "none"
+        visibility = "visible"
       ) %>%
 
 

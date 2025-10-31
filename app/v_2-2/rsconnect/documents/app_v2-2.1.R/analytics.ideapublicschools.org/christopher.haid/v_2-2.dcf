@@ -6,7 +6,7 @@ server: analytics.ideapublicschools.org
 envVars: MAPBOX_PUBLIC_TOKEN
 hostUrl: https://analytics.ideapublicschools.org/__api__
 appId: 341
-bundleId: 13548
+bundleId: 13598
 url: https://analytics.ideapublicschools.org/content/863f335b-a03e-4110-bf45-24ded7d1a96c/
 version: 1
 asMultiple: FALSE
