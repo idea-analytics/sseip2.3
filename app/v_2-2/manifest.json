@@ -21,6 +21,9 @@
     "county_region_lookup.csv": {
       "checksum": "5d41402abc4b2a76b9719d911017c592"
     },
+    "renv.lock": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
     "hex_data.feather": {
       "checksum": "5d41402abc4b2a76b9719d911017c592"
     },
@@ -90,5 +93,8 @@
       "version": "0.7.0"
     }
   },
-  "renv": null
+  "renv": {
+    "version": "1.0.0",
+    "lockfile": "renv.lock"
+  }
 }
