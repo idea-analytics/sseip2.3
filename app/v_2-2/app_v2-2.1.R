@@ -631,23 +631,30 @@ server <- function(input, output) {
         url = "mapbox://christopher-haid.ssi-layers",
         id = "ssi2_layer"
       ) %>%
+      # Load your data first (add this near the top of server function):
+      my_hex_data <- st_read_feather("hex_data.feather") %>%
+        rename(h3_address = hex_id) %>%
+        mutate(
+          popup = paste0("$", scales::comma(median_income)),
+          tooltip = popup,
+          normed_pred_estimate = scales::rescale(median_income, to = c(0, 1))
+      )
+
+      # THEN REPLACE THE HHI LAYER WITH:
       add_fill_layer(
         id = "HHI",
-        source = "ssi2_layer",
-        source_layer = "hhi_r7_tx",
+        source = my_hex_data,  # <-- Your local data instead
         fill_color = idea_colors$coolgray,
-
         fill_opacity = interpolate(
-          column = "normed_pred_estimate",
-          values =  c(0, 1),
-          stops  = c(0, .22)),
-        popup = "popup",
-        tooltip = "tooltip",
-        hover_options = list(
-          fill_color = "yellow"#,
-          #fill_opacity = .8
-        ), visibility = "visible",
-      ) %>%
+          column = "normed_pred_estimate",  # Same column name for compatibility
+          values = c(0, 1),
+          stops = c(0, .22)
+      ),
+      popup = "popup",
+      tooltip = "tooltip",
+      hover_options = list(fill_color = "yellow"),
+      visibility = "visible"
+    ) %>%
 
       add_fill_layer(
         id = "Change Student Density (log)",
