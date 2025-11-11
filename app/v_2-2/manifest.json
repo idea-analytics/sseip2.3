@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "locale": "en_US.UTF-8",
+  "metadata": {
+    "appmode": "shiny",
+    "entrypoint": "app_v2-2.R"
+  },
+  "files": {
+    "app_v2-2.R": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "accountability-fl.rda": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "accountability-tx.rda": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "counties_2023.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "county_region_lookup.csv": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "hex_data.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "idea_isochrones_2025-05-04.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "idea_schools_2025-05-04.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "school_districts_2023.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "school_hex_codes.csv": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_accountability_fl_2024.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_accountability_fl_2024.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_accountability_la_2023.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_accountability_la_2024.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_accountability_oh_schools_2024.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_accountability_oh_schools_2024.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_accountability_tx_schools_2023.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_counties_2022.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_index_2025-05-06.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_isochrones_idea_2024.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_school_districts_2022.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_schools_idea_2024.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_site_suitability.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "sf_states_2022.feather": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    },
+    "states_2021.parquet": {
+      "checksum": "5d41402abc4b2a76b9719d911017c592"
+    }
+  },
+  "python": null,
+  "R": {
+    "version": "4.1.0",
+    "package_manager": {
+      "name": "packrat",
+      "version": "0.7.0"
+    }
+  },
+  "renv": null
+}
